@@ -106,6 +106,15 @@ export default function ReservationPage() {
         <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8">
             <h1 className="text-3xl font-bold text-center mb-8">Make a Reservation</h1>
 
+            {!user && (<>
+                <div className="mb-8 bg-orange-500 border border-red-200 text-white rounded-lg p-4 container mx-auto max-w-3xl">
+                    <Link href='/login'>
+                        <p className="font-medium text-center">Please <span className="font-bold ">login </span>to book a table</p>
+                    </Link>
+
+                </div>
+            </>)}
+
             {success && (
                 <div className="mb-8 bg-green-50 border border-green-200 text-green-800 rounded-lg p-4">
                     <p className="font-medium">Reservation submitted successfully!</p>
@@ -258,17 +267,8 @@ export default function ReservationPage() {
                     ) : (
 
                         <div className="text-right">
-                            <Link href="/login">
-                                <p className="text-orange-600 hover:text-orange-700 p-1 w-64 border border-orange-600 rounded-md text-center ">Please login to book a table</p>
-                            </Link>
 
-                            {/* <button
-        type="submit"
-        disabled={isLoading}
-        className="px-6 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50"
-    >
-        {isLoading ? "Processing..." : "Book Table"}
-    </button> */}
+                            {/* Leave Blank if there is no session */}
                         </div>
                     )}
 

@@ -28,7 +28,7 @@ const kaiseiOpti = Kaisei_Opti({
 });
 
 export const metadata: Metadata = {
-  title: "Restaurant App",
+  title: "The Kumho Restaurant",
   description: "Order food and make reservations",
 };
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import Link from "next/link";
+import { Review } from "@prisma/client";
 
 async function getMenuItems() {
     const categories = await prisma.category.findMany({
@@ -8,6 +9,7 @@ async function getMenuItems() {
             items: {
                 include: {
                     menu: true,
+                    reviews: true,
                 },
                 where: {
                     isAvailable: true,
@@ -21,6 +23,13 @@ async function getMenuItems() {
 
 export default async function MenuPage() {
     const categories = await getMenuItems();
+
+    // Function to calculate average rating
+    const getAverageRating = (reviews: Review[]) => {
+        if (reviews.length === 0) return 0;
+        const sum = reviews.reduce((total: number, review: Review) => total + review.rating, 0);
+        return (sum / reviews.length).toFixed(1);
+    };
 
     return (
         <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8">
@@ -88,6 +97,17 @@ export default async function MenuPage() {
                                                 {item.description || "No description available."}
                                             </p>
 
+                                            {/* Display rating */}
+                                            <div className="mt-2 flex items-center">
+                                                <span className="text-yellow-500 mr-1">★</span>
+                                                <span className="text-sm font-medium">
+                                                    {getAverageRating(item.reviews)}
+                                                </span>
+                                                <span className="text-xs text-gray-500 ml-1">
+                                                    ({item.reviews.length} {item.reviews.length === 1 ? 'review' : 'reviews'})
+                                                </span>
+                                            </div>
+
                                             <div className="mt-3 flex flex-wrap">
                                                 {item.isVegetarian && (
                                                     <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
@@ -102,6 +122,16 @@ export default async function MenuPage() {
                                                 {item.isGlutenFree && (
                                                     <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
                                                         Gluten Free
+                                                    </span>
+                                                )}
+                                                {item.isDairyFree && (
+                                                    <span className="bg-blue-400 text-white text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                                        Dairy Free
+                                                    </span>
+                                                )}
+                                                {item.isSpicy && (
+                                                    <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                                        Spicy
                                                     </span>
                                                 )}
                                             </div>

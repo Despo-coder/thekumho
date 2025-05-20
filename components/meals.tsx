@@ -1,9 +1,46 @@
 import Image from "next/image"
-import { Check, Flame } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { Check } from "lucide-react"
 
-export function Meals() {
+import { prisma } from "@/lib/prisma"
+import Link from "next/link"
+
+async function getTopRatedItems() {
+    // Get menu items with their reviews
+    const menuItems = await prisma.menuItem.findMany({
+        where: {
+            isAvailable: true,
+        },
+        include: {
+            reviews: true,
+            category: true,
+        },
+        take: 10, // Get more items initially to calculate ratings
+    });
+
+    // Calculate average rating for each item
+    const itemsWithRating = menuItems.map(item => {
+        const reviews = item.reviews;
+        const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+        const avgRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+        const reviewCount = reviews.length;
+
+        return {
+            ...item,
+            avgRating,
+            reviewCount
+        };
+    });
+
+    // Sort by average rating (descending)
+    itemsWithRating.sort((a, b) => b.avgRating - a.avgRating);
+
+    // Return top 2 items
+    return itemsWithRating.slice(0, 2);
+}
+
+export async function Meals() {
+    const topRatedItems = await getTopRatedItems();
+
     const diets = [
         "Vegetarian",
         "Vegan",
@@ -25,66 +62,95 @@ export function Meals() {
                         MENU
                     </div>
                     <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900">
-                        KUMO has a wide range of dishes to offer
+                        Our highest rated dishes
                     </h2>
                 </div>
 
                 {/* Content Grid */}
                 <div className="grid gap-10 lg:grid-cols-3 md:grid-cols-2 grid-cols-1 items-start">
-                    {/* Meal Card 1 */}
-                    <Card className="overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-300 rounded-xl">
-                        <Image
-                            src="/images/martin-baron-7Il-XZ2j4SU-unsplash.jpg"
-                            alt="Japanese Gyozas"
-                            width={600}
-                            height={400}
-                            className="w-full h-66 object-cover rounded-t-xl -mt-6"
-                        />
-                        <CardContent className="p-6 space-y-4">
-                            <Badge className="bg-green-100 text-green-800">VEGETARIAN</Badge>
-                            <h3 className="text-2xl font-semibold">Japanese Gyozas</h3>
-                            <div className="text-sm text-gray-700 space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <Flame className="h-5 w-5 text-orange-500" />
-                                    <span>650 calories</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-semibold">NutriScore ®</span>
-                                    <span>74</span>
-                                </div>
-                                <div>4.9 rating (537)</div>
+                    {/* Dynamic Meal Cards */}
+                    {topRatedItems.map((item) => (
+                        <div key={item.id} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <div className="relative h-48 bg-gray-200">
+                                {item.image ? (
+                                    <Image
+                                        src={item.image}
+                                        alt={item.name}
+                                        fill
+                                        className="object-cover"
+                                    />
+                                ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                                        No image
+                                    </div>
+                                )}
                             </div>
-                        </CardContent>
-                    </Card>
 
-                    {/* Meal Card 2 */}
-                    <Card className="overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-300">
-                        <Image
-                            src="/images/martin-baron-7Il-XZ2j4SU-unsplash.jpg"
-                            alt="Avocado Salad"
-                            width={600}
-                            height={400}
-                            className="w-full h-66 object-cover rounded-t-xl -mt-6"
-                        />
-                        <CardContent className="p-6 space-y-4">
-                            <div className="flex gap-2">
-                                <Badge className="bg-green-100 text-green-800">VEGAN</Badge>
-                                <Badge className="bg-yellow-100 text-yellow-800">PALEO</Badge>
-                            </div>
-                            <h3 className="text-2xl font-semibold">Avocado Salad</h3>
-                            <div className="text-sm text-gray-700 space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <Flame className="h-5 w-5 text-orange-500" />
-                                    <span>400 calories</span>
+                            <div className="p-4">
+                                <div className="flex justify-between items-start">
+                                    <h3 className="font-bold">{item.name}</h3>
+                                    <span className="font-medium text-orange-600">
+                                        ${Number(item.price).toFixed(2)}
+                                    </span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-semibold">NutriScore ®</span>
-                                    <span>92</span>
+
+                                <p className="text-gray-600 text-sm mt-1 line-clamp-2">
+                                    {item.description || "No description available."}
+                                </p>
+
+                                {/* Display rating */}
+                                <div className="mt-2 flex items-center">
+                                    <span className="text-yellow-500 mr-1">★</span>
+                                    <span className="text-sm font-medium">
+                                        {item.avgRating.toFixed(1)}
+                                    </span>
+                                    <span className="text-xs text-gray-500 ml-1">
+                                        ({item.reviewCount} {item.reviewCount === 1 ? 'review' : 'reviews'})
+                                    </span>
                                 </div>
-                                <div>4.8 rating (441)</div>
+
+                                <div className="mt-3 flex flex-wrap">
+                                    {item.isVegetarian && (
+                                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                            Vegetarian
+                                        </span>
+                                    )}
+                                    {item.isVegan && (
+                                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                            Vegan
+                                        </span>
+                                    )}
+                                    {item.isGlutenFree && (
+                                        <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                            Gluten Free
+                                        </span>
+                                    )}
+                                    {item.isDairyFree && (
+                                        <span className="bg-blue-400 text-white text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                            Dairy Free
+                                        </span>
+                                    )}
+                                    {item.isSpicy && (
+                                        <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                            Spicy
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="mt-4 flex justify-between">
+                                    <Link
+                                        href={`/menu/${item.id}`}
+                                        className="text-orange-600 hover:text-orange-700 text-sm font-medium"
+                                    >
+                                        View details
+                                    </Link>
+                                    <button className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm">
+                                        Add to order
+                                    </button>
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    ))}
 
                     {/* Diet List */}
                     <div className="space-y-6 p-6 bg-white rounded-xl shadow-md">
@@ -102,9 +168,9 @@ export function Meals() {
 
                 {/* Footer Link */}
                 <div className="mt-12 text-center">
-                    <a href="#" className="text-orange-600 hover:underline text-base font-medium">
-                        See Menu →
-                    </a>
+                    <Link href="/menu" className="text-orange-600 hover:underline text-base font-medium">
+                        See Full Menu →
+                    </Link>
                 </div>
             </div>
         </section>

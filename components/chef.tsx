@@ -1,6 +1,7 @@
 import Image from "next/image"
 import { Quote } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
 
 
 export function ChefSpotlight() {
@@ -40,12 +41,12 @@ export function ChefSpotlight() {
                     </div>
 
                     <div className="mt-8">
-                        <a
-                            href="#reservations"
+                        <Link
+                            href="/reservation"
                             className="inline-block rounded-lg bg-orange-600 px-6 py-3 text-white font-medium shadow hover:bg-orange-700 transition"
                         >
                             Book Your Table
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </div>

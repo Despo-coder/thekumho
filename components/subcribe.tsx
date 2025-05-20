@@ -12,11 +12,12 @@ const Subcribe = () => {
                 {/* <!-- Flex Container --> */}
                 <div className="flex flex-col md:flex-row rounded-l-xl">
                     {/* <!-- Image --> */}
+
                     <Image
-                        src="/images/image.jpg"
+                        src="/images/amrut-roul-9aEwxFO-HSI-unsplash.jpg"
                         alt=""
-                        className="object-fit rounded-xl  h-80 w-full md:h-64 md:rounded-l-xl md:rounded-r-none transform hover:scale-105 hover:rounded-xl duration-200"
-                        width={200}
+                        className="object-fit rounded-xl  h-80 w-[100%] md:w-[50%] md:h-64 md:rounded-l-xl md:rounded-r-none transform hover:scale-105 hover:rounded-xl duration-200"
+                        width={150}
                         height={200}
                     />
                     {/* <!-- Content --> */}
@@ -44,7 +45,7 @@ const Subcribe = () => {
                             />
 
                             <button
-                                className="px-5 py-3 text-xs rounded-md text-zinc-800 bg-lime-500 hover:bg-lime-700 hover:text-white duration-500"
+                                className="px-5 py-3 text-xs rounded-md text-zinc-800 bg-orange-500 hover:bg-orange-700 hover:text-white duration-500"
                             >
                                 Subcribe
                             </button>

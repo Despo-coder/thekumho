@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import Link from "next/link";
 
 export function Hero() {
     return (
@@ -28,8 +29,13 @@ export function Hero() {
                             A modern interpretation of Japanese cuisine, Kumo offers a curated fusion menu that celebrates elegance, innovation, and a deep respect for flavor. Welcome to your new favorite ritual..
                         </p>
                         <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center lg:justify-start">
-                            <Button className="bg-orange-500 hover:bg-orange-600 text-white">Start eating well</Button>
-                            <Button variant="outline" className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white">Learn more</Button>
+                            <Link href="/menu">
+                                <Button className="bg-orange-500 hover:bg-white hover:text-orange-600">Order Now</Button>
+                            </Link>
+                            <Link href='/reservation'>
+                                <Button variant="outline" className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white">Book a Table</Button>
+                            </Link>
+
                         </div>
                         {/* <p className="text-sm font-medium text-orange-200">
                             250,000+ meals delivered last year!
