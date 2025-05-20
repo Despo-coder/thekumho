@@ -15,10 +15,10 @@ Below is a simplified representation of the database relationships:
 │ name    │     │ status  │     │ price   │     │ price   │
 │ role    │     │ userId  │─┐   │ menuItemId    │ categoryId
 └─────────┘     └─────────┘ │   └─────────┘     └─────────┘
-     │1                     │                         │1
-     │                      │                         │
-     │                      │                         │
-     │*                     │1                        │*
+     │1              │1     │                         │1
+     │               │      │                         │
+     │               │      │                         │
+     │*              │*     │1                        │*
 ┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
 │ Booking │     │OrderStat│     │ Review  │     │Category │
 ├─────────┤     ├─────────┤     ├─────────┤     ├─────────┤
@@ -26,16 +26,24 @@ Below is a simplified representation of the database relationships:
 │ tableId │     │ status  │     │ rating  │     │ name    │
 │ userId  │─────│ orderId │     │ content │     │description
 └─────────┘     └─────────┘     └─────────┘     └─────────┘
-     │*                                               │1
-     │                                                │
-     │1                                               │
-┌─────────┐                                      ┌─────────┐
-│  Table  │                                      │  Menu   │
-├─────────┤                                      ├─────────┤
-│ id      │                                      │ id      │
-│ seats   │                                      │ name    │
-│ location│                                      │ isActive│
-└─────────┘                                      └─────────┘
+     │*              │*                              │1
+     │               │                               │
+     │1              │                               │
+┌─────────┐     ┌─────────┐                     ┌─────────┐
+│  Table  │     │  Sale   │                     │  Menu   │
+├─────────┤     ├─────────┤                     ├─────────┤
+│ id      │     │ id      │                     │ id      │
+│ seats   │     │ total   │                     │ name    │
+│ location│     │ orderId │                     │ isActive│
+└─────────┘     └─────────┘                     └─────────┘
+                     │1
+┌─────────┐          │
+│ Waitlist│          │
+├─────────┤          │
+│ id      │          │
+│ status  │──────────┘
+│ userId  │
+└─────────┘
 ```
 
 ## Tables
@@ -228,6 +236,49 @@ Stores customer reviews for menu items.
 | createdAt | DateTime | Creation timestamp |
 | updatedAt | DateTime | Last update timestamp |
 
+### Sale
+
+Tracks financial transactions and sales records.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String (cuid) | Primary key |
+| saleNumber | String? | Customer-facing receipt number |
+| subtotal | Decimal | Sale subtotal before tax |
+| tax | Decimal | Tax amount |
+| tip | Decimal? | Tip amount if applicable |
+| discount | Decimal? | Discount amount if applicable |
+| total | Decimal | Total sale amount |
+| paymentMethod | String | Payment method (Credit, Cash, etc.) |
+| paymentStatus | PaymentStatus (enum) | Payment status |
+| orderId | String? | References Order if associated |
+| serverId | String? | References User (waiter) |
+| processedById | String | References User who processed |
+| notes | String? | Additional notes |
+| createdAt | DateTime | Creation timestamp |
+| updatedAt | DateTime | Last update timestamp |
+
+### Waitlist
+
+Manages customers waiting when reservations are unavailable.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String (cuid) | Primary key |
+| customerName | String | Customer name |
+| phoneNumber | String | Contact phone number |
+| email | String? | Contact email |
+| partySize | Int | Size of party |
+| requestedDate | DateTime | Requested date |
+| requestedTime | DateTime | Requested time |
+| estimatedWait | Int? | Estimated wait in minutes |
+| status | WaitlistStatus (enum) | Current status |
+| notificationSent | Boolean | If notification was sent |
+| userId | String? | References User if registered |
+| notes | String? | Additional notes |
+| createdAt | DateTime | Creation timestamp |
+| updatedAt | DateTime | Last update timestamp |
+
 ## Enums
 
 ### Role
@@ -262,4 +313,11 @@ Stores customer reviews for menu items.
 - ORDER_ASSIGNED: Notification for order assignments
 - PAYMENT_RECEIVED: Notification for payments
 - REVIEW_RECEIVED: Notification for new reviews
-- SYSTEM_ALERT: System alerts 
+- SYSTEM_ALERT: System alerts
+
+### WaitlistStatus
+- WAITING: Customer is on waitlist
+- NOTIFIED: Customer has been notified of availability
+- SEATED: Customer has been seated
+- CANCELLED: Customer cancelled request
+- NO_SHOW: Customer did not show up 

@@ -517,3 +517,49 @@ If you've tried the solutions in this guide and are still experiencing issues:
    - List steps to reproduce
    - Describe your environment (Node.js version, database, OS)
    - Share code snippets related to the issue 
+
+## Next.js 15 Specific Issues
+
+### Problem: Route handler type errors with dynamic params
+
+**Symptoms:**
+- Build errors with messages like `Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: { params: { id: string; }; }; }' does not satisfy the constraint 'ParamCheck<RouteContext>'`
+- Errors about params missing Promise properties (`then`, `catch`, `finally`)
+
+**Possible Solutions:**
+
+1. **Update route handler parameter types to use Promise-based params:**
+   ```typescript
+   // Define interface for params
+   export interface RouteParams {
+     params: Promise<{ id: string }>;
+   }
+   
+   // Use in route handler
+   export async function GET(
+     request: NextRequest,
+     context: RouteParams
+   ) {
+     try {
+       // Await params before accessing
+       const resolvedParams = await context.params;
+       const { id } = resolvedParams;
+       
+       // Proceed with request handling
+     } catch (error) {
+       return NextResponse.json(
+         { error: "Failed to process request" },
+         { status: 500 }
+       );
+     }
+   }
+   ```
+
+2. **Update all dynamic route handlers consistently:**
+   - Apply the same Promise-based pattern to all dynamic route handlers
+   - Include proper error handling for Promise rejection
+   - Consider loading states while params are resolving
+
+3. **Check Next.js version compatibility:**
+   - Ensure your code follows latest Next.js 15 patterns
+   - Review the Next.js documentation for route handlers 

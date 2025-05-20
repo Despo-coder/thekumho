@@ -5,29 +5,33 @@
 - [x] Create signup/login pages
 - [ ] Implement user profile management
 - [x] Set up user role-based permissions (Admin, User)
+- [ ] **[HIGH PRIORITY]** Create comprehensive user role management system for staff
 
 ## 2. Menu Management
-- [ ] Create admin dashboard for menu management
+- [ ] **[HIGHEST PRIORITY]** Create admin dashboard for menu management
 - [ ] Implement CRUD operations for menu items
 - [ ] Add dietary preference filters (UI implemented, functionality needed)
 - [x] Implement menu categories
 - [ ] Add menu item image upload functionality
+- [ ] Implement batch operations for updating multiple items
 
 ## 3. Table Reservation System
 - [x] Create reservation form for users
 - [x] Implement availability checking
-- [ ] Create admin dashboard for reservation management
+- [ ] **[HIGH PRIORITY]** Create admin dashboard for reservation management
 - [ ] Add email notifications for reservation confirmation
 - [ ] Implement reservation editing and cancellation
+- [ ] Build table assignment system for staff
 
 ## 4. Order System
 - [ ] Create order cart functionality
 - [ ] Implement checkout process
 - [ ] Add payment integration (Stripe)
 - [ ] Develop order tracking system for users
-- [ ] Create admin dashboard for order management
+- [ ] **[HIGH PRIORITY]** Create admin dashboard for order management
 - [ ] Implement pickup time estimation
 - [ ] Add notification system for order status updates
+- [ ] Create printable receipts functionality
 
 ## 5. Review System
 - [ ] Implement review submission for menu items
@@ -61,17 +65,24 @@
 - [ ] Configure environment variables
 - [ ] Implement monitoring and logging
 
-## 10. Post-Launch
-- [ ] Monitor application performance
-- [ ] Gather user feedback
-- [ ] Implement analytics
-- [ ] Plan feature improvements 
+## 10. Analytics & Reporting
+- [ ] **[HIGH PRIORITY]** Implement admin analytics dashboard
+- [ ] Create sales and revenue reports
+- [ ] Add customer behavior analytics
+- [ ] Develop menu performance metrics
+- [ ] Build data export functionality
 
 ## Current Status
 After initial testing, we've found that several features are functioning well:
 - Authentication works for both admin and regular users
-- Menu page displays seeded items correctly
+- Menu page displays seeded items correctly with ratings
 - Reservation form works for creating new bookings
+- Featured dishes on homepage now display highest-rated items
+
+Next steps:
+- Focus on implementing the admin-side management features as per priority list in [Admin Action Points](./admin-action-points.md)
+- Begin with Menu Management System as the top priority
+- Proceed with Order Processing and Reservation Management next
 
 Some issues to address:
 - Orders page isn't displaying the seeded orders

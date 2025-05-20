@@ -226,6 +226,173 @@ The authentication system uses NextAuth.js, which provides the following endpoin
   - 404: User not found
   - 500: Server error
 
+## Waitlist Endpoints
+
+### `GET /api/waitlist`
+- Fetches all waitlist entries
+- Query Parameters:
+  - `status` (optional): Filter by status (WAITING, NOTIFIED, SEATED, CANCELLED, NO_SHOW)
+  - `date` (optional): Filter by date
+- Authentication: Required
+- Authorization: Staff only (ADMIN, MANAGER, WAITER)
+- Returns: Array of waitlist entries
+- Status codes:
+  - 200: Success
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 500: Server error
+
+### `POST /api/waitlist`
+- Creates a new waitlist entry
+- Parameters:
+  - `customerName`: Name of the customer
+  - `phoneNumber`: Phone number of the customer
+  - `partySize`: Number of people in the party
+  - `requestedDate`: Requested date
+  - `requestedTime`: Requested time
+  - `email` (optional): Customer's email
+  - `estimatedWait` (optional): Estimated wait time in minutes
+  - `notes` (optional): Additional notes
+- Authentication: Optional (if user is logged in, their ID is linked to the entry)
+- Returns: Created waitlist entry
+- Status codes:
+  - 201: Waitlist entry created successfully
+  - 400: Invalid input
+  - 500: Server error
+
+### `GET /api/waitlist/:id`
+- Fetches a specific waitlist entry
+- URL Parameters:
+  - `id`: Waitlist entry ID
+- Authentication: Required
+- Authorization: Staff or the customer who created the entry
+- Returns: Waitlist entry details
+- Status codes:
+  - 200: Success
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Waitlist entry not found
+  - 500: Server error
+
+### `PATCH /api/waitlist/:id`
+- Updates a waitlist entry
+- URL Parameters:
+  - `id`: Waitlist entry ID
+- Body Parameters:
+  - `status` (optional): New status
+  - `estimatedWait` (optional): Updated wait time
+  - `notificationSent` (optional): Whether notification has been sent
+  - `notes` (optional): Updated notes
+- Authentication: Required
+- Authorization: Staff only (ADMIN, MANAGER, WAITER)
+- Returns: Updated waitlist entry
+- Status codes:
+  - 200: Waitlist entry updated successfully
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Waitlist entry not found
+  - 500: Server error
+
+### `DELETE /api/waitlist/:id`
+- Deletes a waitlist entry
+- URL Parameters:
+  - `id`: Waitlist entry ID
+- Authentication: Required
+- Authorization: Staff or the customer who created the entry
+- Returns: Success message
+- Status codes:
+  - 200: Waitlist entry deleted successfully
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Waitlist entry not found
+  - 500: Server error
+
+## Sales Endpoints
+
+### `GET /api/sales`
+- Fetches all sales records
+- Query Parameters:
+  - `startDate` (optional): Filter by start date
+  - `endDate` (optional): Filter by end date
+  - `serverId` (optional): Filter by server/waiter ID
+  - `paymentMethod` (optional): Filter by payment method
+- Authentication: Required
+- Authorization: Staff only (ADMIN, MANAGER, WAITER)
+- Returns: Array of sales records
+- Status codes:
+  - 200: Success
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 500: Server error
+
+### `POST /api/sales`
+- Creates a new sales record
+- Parameters:
+  - `subtotal`: Subtotal amount
+  - `tax`: Tax amount
+  - `total`: Total amount
+  - `paymentMethod`: Method of payment
+  - `tip` (optional): Tip amount
+  - `discount` (optional): Discount amount
+  - `orderId` (optional): Related order ID
+  - `serverId` (optional): Server/waiter ID
+  - `notes` (optional): Additional notes
+- Authentication: Required
+- Authorization: Staff only (ADMIN, MANAGER, WAITER)
+- Returns: Created sales record
+- Status codes:
+  - 201: Sales record created successfully
+  - 400: Invalid input
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 500: Server error
+
+### `GET /api/sales/:id`
+- Fetches a specific sales record
+- URL Parameters:
+  - `id`: Sales record ID
+- Authentication: Required
+- Authorization: Staff only (ADMIN, MANAGER, WAITER)
+- Returns: Sales record details
+- Status codes:
+  - 200: Success
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Sales record not found
+  - 500: Server error
+
+### `PATCH /api/sales/:id`
+- Updates a sales record
+- URL Parameters:
+  - `id`: Sales record ID
+- Body Parameters:
+  - `tip` (optional): Updated tip amount
+  - `discount` (optional): Updated discount amount
+  - `notes` (optional): Updated notes
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Updated sales record
+- Status codes:
+  - 200: Sales record updated successfully
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Sales record not found
+  - 500: Server error
+
+### `DELETE /api/sales/:id`
+- Voids a sales record (marks as refunded)
+- URL Parameters:
+  - `id`: Sales record ID
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Voided sales record
+- Status codes:
+  - 200: Sales record voided successfully
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Sales record not found
+  - 500: Server error
+
 ## Error Handling
 
 All API endpoints follow a common error response format:

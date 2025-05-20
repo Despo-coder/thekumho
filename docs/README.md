@@ -15,6 +15,7 @@ This folder contains comprehensive documentation for the Restaurant Application.
 9. [Troubleshooting Guide](./troubleshooting-guide.md) - Common issues and solutions
 10. [Development Workflow](./development-workflow.md) - Development process and guidelines
 11. [Development Checklist](./development-checklist.md) - Project development checklist
+12. [Admin Action Points](./admin-action-points.md) - Priority tasks for admin feature development
 
 ## How to Use This Documentation
 

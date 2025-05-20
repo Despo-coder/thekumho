@@ -17,21 +17,25 @@ model Table {
 }
 
 model Booking {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   customerName   String
   email          String?
   phone          String?
   partySize      Int
   bookingTime    DateTime
   specialRequest String?
-  status         String   @default("pending")
-  createdAt      DateTime @default(now())
-  table          Table?   @relation(fields: [tableId], references: [id])
+  status         String    @default("pending")
+  createdAt      DateTime  @default(now())
+  table          Table?    @relation(fields: [tableId], references: [id])
   tableId        Int?
   userId         String?
-  user           User?    @relation(fields: [userId], references: [id])
+  user           User?     @relation(fields: [userId], references: [id])
+  // Added relation to Waitlist
+  waitlistEntry  Waitlist? @relation(fields: [waitlistId], references: [id])
+  waitlistId     String?
 
   @@index([userId])
+  @@index([waitlistId])
 }
 
 model Menu {
@@ -113,6 +117,7 @@ model Order {
 
   items         OrderItem[]
   statusUpdates OrderStatusUpdate[]
+  sales         Sale[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
@@ -179,6 +184,65 @@ model Review {
   @@index([userId])
 }
 
+// New Sales Table
+model Sale {
+  id            String        @id @default(cuid())
+  saleNumber    String?       @unique // For customer-facing receipts
+  subtotal      Decimal       @db.Decimal(10, 2)
+  tax           Decimal       @db.Decimal(10, 2)
+  tip           Decimal?      @db.Decimal(10, 2)
+  discount      Decimal?      @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  paymentMethod String // Credit, Cash, Mobile, etc.
+  paymentStatus PaymentStatus @default(PAID)
+
+  // Relations
+  orderId String? // Optional - if associated with an order
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  serverId String? // Server/waiter who handled the transaction
+  server   User?   @relation(name: "ServerSales", fields: [serverId], references: [id])
+
+  processedById String // Admin/staff who processed the payment
+  processedBy   User   @relation(name: "ProcessedSales", fields: [processedById], references: [id])
+
+  // Additional info
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([serverId])
+  @@index([processedById])
+}
+
+// New Waitlist Table
+model Waitlist {
+  id               String         @id @default(cuid())
+  customerName     String
+  phoneNumber      String
+  email            String?
+  partySize        Int
+  requestedDate    DateTime
+  requestedTime    DateTime
+  estimatedWait    Int? // In minutes
+  status           WaitlistStatus @default(WAITING)
+  notificationSent Boolean        @default(false)
+
+  // Customer information
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  // Related reservation (if eventually seated)
+  bookings Booking[]
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -193,12 +257,23 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  reviews  Review[]
-  bookings Booking[]
-  orders   Order[]
+  reviews         Review[]
+  bookings        Booking[]
+  orders          Order[]
+  waitlistEntries Waitlist[]
+  serverSales     Sale[]     @relation("ServerSales")
+  processedSales  Sale[]     @relation("ProcessedSales")
 
   statusUpdates OrderStatusUpdate[]
   notifications Notification[]
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  SEATED
+  CANCELLED
+  NO_SHOW
 }
 
 enum Role {

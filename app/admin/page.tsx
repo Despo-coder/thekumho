@@ -5,17 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
+import { Calendar, CookingPot, DollarSign, Package, ShoppingBag, Users, Utensils } from "lucide-react";
 
-    Calendar,
-    CookingPot,
-    DollarSign,
-    Package,
-    ShoppingBag,
-    Users,
-    Utensils,
-
-} from "lucide-react";
 
 export default function AdminDashboard() {
     const { data: session, status } = useSession();

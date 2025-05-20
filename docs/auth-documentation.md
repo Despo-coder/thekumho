@@ -199,11 +199,25 @@ export { handler as GET, handler as POST };
 For reusing authOptions in other parts of the application:
 
 ```typescript
-// app/api/auth/auth.ts
-import { authOptions } from "./[...nextauth]/options";
+// lib/auth.ts
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { compare } from "bcrypt";
+import { prisma } from "./prisma";
+import { Role } from "@prisma/client";
 
-export { authOptions };
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  // ... other options
+};
 ```
+
+> **Important Note**: When using NextAuth.js with Prisma, be aware of adapter compatibility issues:
+> - The `@auth/prisma-adapter` package is not fully compatible with `next-auth@4.x` due to type mismatches
+> - Use `@next-auth/prisma-adapter` instead for better compatibility
+> - When updating packages, check for adapter compatibility issues
+> - Always ensure that API routes use the same authOptions instance to maintain consistency
 
 ### Client-Side Authentication
 

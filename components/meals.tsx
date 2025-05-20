@@ -1,8 +1,8 @@
 import Image from "next/image"
 import { Check } from "lucide-react"
-
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
+
 
 async function getTopRatedItems() {
     // Get menu items with their reviews
