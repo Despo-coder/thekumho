@@ -4,6 +4,9 @@ import "./globals.css";
 import Footer from "@/components/footer";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/navbar";
+import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
+import { extractRouterConfig } from "uploadthing/server";
+import { ourFileRouter } from "./api/uploadthing/core";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +44,14 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${sawarabiMincho.variable} ${kaiseiOpti.variable}`} suppressHydrationWarning>
       <body>
         <Providers>
+          <NextSSRPlugin
+            /**
+             * The extractRouterConfig will extract only the route configs
+             * from the router to prevent additional information from being
+             * leaked to the client.
+             */
+            routerConfig={extractRouterConfig(ourFileRouter)}
+          />
           <Navbar />
           <main>
             {children}

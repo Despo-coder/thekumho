@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, CookingPot, DollarSign, Package, ShoppingBag, Users, Utensils } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 
 export default function AdminDashboard() {
@@ -243,16 +245,20 @@ export default function AdminDashboard() {
                                 Add, edit, or remove menu items
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="py-8 text-center">
+                        <CardContent className="py-8">
                             <div className="mx-auto max-w-md">
                                 <CookingPot className="mx-auto h-12 w-12 text-gray-400" />
-                                <h3 className="mt-2 text-lg font-medium">Menu Items</h3>
-                                <p className="mt-1 text-gray-500">
-                                    This section will allow you to manage your restaurant&apos;s menu.
+                                <h3 className="mt-2 text-lg font-medium text-center">Menu Items</h3>
+                                <p className="mt-1 text-center text-gray-500">
+                                    Manage your restaurant&apos;s menu with our comprehensive menu management system.
                                 </p>
-                                <p className="text-sm text-gray-500 mt-4 italic">
-                                    Not implemented in this demo. In a full application, you would see a list of menu items with options to edit, add, or remove items.
-                                </p>
+                                <div className="mt-6 flex justify-center">
+                                    <Link href="/admin/menu">
+                                        <Button>
+                                            Go to Menu Management
+                                        </Button>
+                                    </Link>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
