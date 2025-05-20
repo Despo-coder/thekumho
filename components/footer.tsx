@@ -9,16 +9,16 @@ const Footer = () => {
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
                         {/* Company Description */}
                         <div>
-                            <h3 className="mb-4 text-xl font-medium">Exquisite Cabinetry</h3>
-                            <p className="text-gray-300">Premium cabinets, limited-time savings.</p>
+                            <h3 className="mb-4 text-xl font-medium">The Kumho Restaurant</h3>
+                            <p className="text-gray-300">Japanese Cuisine</p>
                         </div>
 
                         {/* Contact */}
                         <div>
                             <h3 className="mb-4 text-xl font-medium">Contact Us</h3>
-                            <p className="text-gray-300">123 Furniture Lane</p>
-                            <p className="text-gray-300">Design District, CA 90210</p>
-                            <p className="text-gray-300">info@exquisitecabinetry.com</p>
+                            <p className="text-gray-300">1471 Harmony Rd N</p>
+                            <p className="text-gray-300">Food District, CA 90210</p>
+                            <p className="text-gray-300">info@thekuhorestaurant.com</p>
                             <p className="text-gray-300">(555) 123-4567</p>
                         </div>
 
