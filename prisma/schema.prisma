@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Table {
+  id          Int       @id @default(autoincrement())
+  tableNumber Int       @unique
+  seats       Int
+  location    String?
+  bookings    Booking[]
+  // orders      Order[] // Allow orders to be associated with tables
+}
+
+model Booking {
+  id             Int      @id @default(autoincrement())
+  customerName   String
+  email          String?
+  phone          String?
+  partySize      Int
+  bookingTime    DateTime
+  specialRequest String?
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+  table          Table?   @relation(fields: [tableId], references: [id])
+  tableId        Int?
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Menu {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean    @default(true)
+  isPickup    Boolean    @default(true)
+  items       MenuItem[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  items       MenuItem[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model MenuItem {
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  price         Decimal      @db.Decimal(10, 2)
+  image         String?
+  isAvailable   Boolean      @default(true)
+  // Dietary preferences
+  isVegetarian  Boolean      @default(false)
+  isVegan       Boolean      @default(false)
+  isPescatarian Boolean      @default(false)
+  isGlutenFree  Boolean      @default(false)
+  isDairyFree   Boolean      @default(false)
+  isNutFree     Boolean      @default(false)
+  isSpicy       Boolean      @default(false)
+  dietary       DietaryTag[]
+  // Relations
+  menuId        String
+  menu          Menu         @relation(fields: [menuId], references: [id])
+  categoryId    String
+  category      Category     @relation(fields: [categoryId], references: [id])
+  reviews       Review[]
+  orderItems    OrderItem[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([menuId])
+  @@index([categoryId])
+}
+
+model DietaryTag {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  color       String? // For UI display
+  items       MenuItem[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Order {
+  id                  String        @id @default(cuid())
+  orderNumber         String?       @unique // Customer-facing order number
+  total               Decimal       @db.Decimal(10, 2)
+  status              OrderStatus   @default(PENDING)
+  paymentStatus       PaymentStatus @default(PENDING)
+  paymentMethod       String?
+  orderType           OrderType     @default(DINE_IN)
+  isNotified          Boolean       @default(false) // Tracks if staff has been notified
+  orderNotes          String?
+  estimatedPickupTime DateTime?
+  completedTime       DateTime?
+
+  // Customer information
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  items         OrderItem[]
+  statusUpdates OrderStatusUpdate[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([userId])
+}
+
+model OrderStatusUpdate {
+  id          String      @id @default(cuid())
+  status      OrderStatus
+  note        String?
+  orderId     String
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  updatedById String
+  updatedBy   User        @relation(fields: [updatedById], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@index([orderId])
+  @@index([updatedById])
+}
+
+model OrderItem {
+  id                  String   @id @default(cuid())
+  quantity            Int
+  price               Decimal  @db.Decimal(10, 2)
+  specialInstructions String?
+  menuItemId          String
+  menuItem            MenuItem @relation(fields: [menuItemId], references: [id])
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId])
+  @@index([orderId])
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  type           NotificationType
+  message        String
+  isRead         Boolean          @default(false)
+  userId         String
+  user           User             @relation(fields: [userId], references: [id])
+  relatedOrderId String?
+  createdAt      DateTime         @default(now())
+
+  @@index([userId])
+  @@index([relatedOrderId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  rating     Int      @default(5)
+  title      String?
+  content    String
+  userId     String
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  isVerified Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([menuItemId])
+  @@index([userId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role      @default(USER)
+  phone         String?
+  isActive      Boolean   @default(true)
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  reviews  Review[]
+  bookings Booking[]
+  orders   Order[]
+
+  statusUpdates OrderStatusUpdate[]
+  notifications Notification[]
+}
+
+enum Role {
+  USER
+  ADMIN
+  CHEF
+  WAITER
+  MANAGER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY_FOR_PICKUP
+  COMPLETED
+  CANCELED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum OrderType {
+  DINE_IN
+  PICKUP
+}
+
+enum NotificationType {
+  NEW_ORDER
+  ORDER_STATUS_CHANGE
+  ORDER_ASSIGNED
+  PAYMENT_RECEIVED
+  REVIEW_RECEIVED
+  SYSTEM_ALERT
+}
