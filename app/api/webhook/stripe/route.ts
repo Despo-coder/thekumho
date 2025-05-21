@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { OrderStatus, PaymentStatus, OrderType } from '@prisma/client';
+import { createSaleFromPayment } from '@/lib/actions/sales-actions';
 
 // Initialize Stripe with the secret API key from environment variables
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
@@ -203,6 +204,8 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
     console.log('Charge metadata:', JSON.stringify(charge.metadata || {}));
     
     const { metadata } = charge;
+    let orderId: string | null = null;
+    let order;
     
     // Check if we have an orderId in metadata
     if (metadata?.orderId) {
@@ -242,7 +245,7 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
         // Only add these fields if the database schema has been updated
         try {
           // Test if we can update with new fields
-          const order = await prisma.order.update({
+          order = await prisma.order.update({
             where: { id: metadata.orderId },
             data: {
               ...updateData,
@@ -252,18 +255,18 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
           });
           
           console.log(`Updated order ${order.id} payment status to PAID`);
-          return order;
+          orderId = order.id;
         } catch (schemaError) {
           console.log('Schema might not be updated yet, using fallback update:', schemaError);
           
           // Fallback to basic update without new fields
-          const order = await prisma.order.update({
+          order = await prisma.order.update({
             where: { id: metadata.orderId },
             data: updateData
           });
           
           console.log(`Updated order ${order.id} payment status to PAID (fallback method)`);
-          return order;
+          orderId = order.id;
         }
       } catch (updateError) {
         console.error('Error updating existing order:', updateError);
@@ -434,7 +437,7 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
           });
           
           console.log(`Created new order ${order.id} from charge ${charge.id}`);
-          return order;
+          orderId = order.id;
         } catch (schemaError) {
           console.log('Schema might not include payment fields, using fallback:', schemaError);
           
@@ -444,13 +447,42 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
           });
           
           console.log(`Created new order ${order.id} from charge ${charge.id} (fallback method)`);
-          return order;
+          orderId = order.id;
         }
       } catch (createError) {
         console.error('Error creating order:', createError);
         throw createError;
       }
     }
+    
+    // Create a sales record if we have an order ID
+    if (orderId) {
+      try {
+        // Calculate tax as 7% of total
+        const amount = Number(charge.amount) / 100; // Convert from cents
+        const taxRate = 0.07;
+        const subtotal = amount / (1 + taxRate);
+        const tax = amount - subtotal;
+        
+        // Create the sales record
+        await createSaleFromPayment({
+          subtotal: subtotal,
+          tax: tax,
+          total: amount,
+          paymentMethod: charge.payment_method_details?.type || 'stripe',
+          orderId: orderId,
+          processedById: metadata?.userId || 'system',
+          notes: `Payment processed via Stripe. Charge ID: ${charge.id}`
+        });
+        
+        console.log(`Created sales record for order ${orderId}`);
+      } catch (saleError) {
+        // Log but don't fail the webhook
+        console.error('Error creating sales record:', saleError);
+      }
+    }
+    
+    return order;
   } catch (error) {
     console.error('Error processing charge.succeeded event:', error);
     // Instead of throwing, return a partial success so Stripe doesn't retry
@@ -472,7 +504,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   }
 
   console.log(`Processing successful payment intent for order: ${metadata.orderId}`);
-  await updateOrderPaymentStatus(
+  const result = await updateOrderPaymentStatus(
     metadata.orderId,
     PaymentStatus.PAID,
     OrderStatus.CONFIRMED,
@@ -480,6 +512,34 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     'Payment confirmed via payment intent',
     paymentIntent.id
   );
+  
+  // If the order was updated successfully, create a sales record
+  if (result?.success && paymentIntent.amount) {
+    try {
+      // Calculate tax as 7% of total
+      const amount = Number(paymentIntent.amount) / 100; // Convert from cents
+      const taxRate = 0.07;
+      const subtotal = amount / (1 + taxRate);
+      const tax = amount - subtotal;
+      
+      // Create the sales record
+      await createSaleFromPayment({
+        subtotal: subtotal,
+        tax: tax,
+        total: amount,
+        paymentMethod: typeof paymentIntent.payment_method === 'string' ? 
+          paymentIntent.payment_method : 'stripe',
+        orderId: metadata.orderId,
+        processedById: metadata.userId || 'system',
+        notes: `Payment intent processed via Stripe. Intent ID: ${paymentIntent.id}`
+      });
+      
+      console.log(`Created sales record for payment intent ${paymentIntent.id}`);
+    } catch (error) {
+      // Log but don't fail the webhook
+      console.error('Error creating sales record from payment intent:', error);
+    }
+  }
 }
 
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
@@ -542,7 +602,7 @@ async function updateOrderPaymentStatus(
 
     if (!order) {
       console.error(`Order ${orderId} not found`);
-      return;
+      return { success: false, error: 'Order not found' };
     }
 
     // Prepare update data
@@ -568,13 +628,15 @@ async function updateOrderPaymentStatus(
     }
 
     // Update order status
-    await prisma.order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: updateData,
     });
 
     console.log(`Order ${orderId} payment status updated to ${paymentStatus}`);
+    return { success: true, order: updatedOrder };
   } catch (error) {
     console.error(`Error updating order ${orderId} payment status:`, error);
+    return { success: false, error: 'Failed to update order status' };
   }
 } 
