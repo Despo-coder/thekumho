@@ -101,6 +101,7 @@ export async function GET(
 **Common TypeScript Errors:**
 - `Type '{ id: string; }' is not assignable to parameter of type 'Usable<unknown>'`
 - `Type '{ id: string; }' is missing properties from type 'Promise<any>'`
+- `Type '{ params: { id: string; }; }' does not satisfy the constraint 'PageProps'`
 
 **Key Points:**
 1. Always await params before accessing properties
@@ -110,6 +111,33 @@ export async function GET(
 5. Use error boundaries for failed parameter resolution
 6. In client components, use React.use() instead of await
 7. Ensure all props interfaces correctly type params as a Promise
+
+**Implementation Examples:**
+We successfully applied this pattern in our food delivery app:
+
+```typescript
+// In orders/[id]/page.tsx (client component)
+interface OrderDetailPageProps {
+    params: Promise<{ id: string }>;
+}
+
+export default function OrderDetailPage({ params }: OrderDetailPageProps) {
+    const resolvedParams = React.use(params);
+    const orderId = resolvedParams.id;
+    
+    // Now use orderId safely in your component
+    useEffect(() => {
+        const loadOrder = async () => {
+            if (status === 'authenticated' && session?.user?.id && orderId) {
+                // ... rest of the code using orderId
+            }
+        };
+        loadOrder();
+    }, [orderId, status, session, router]);
+    
+    // ... rest of component
+}
+```
 
 ### 4. Form Design and UX
 
