@@ -617,3 +617,33 @@ We fixed these issues by properly typing the data structures in `menu-actions.ts
    ```
 
 This ensures proper type checking and prevents runtime errors when accessing properties of these objects. 
+
+## Stripe Integration Issues
+
+### Problem: Orders not being created after Stripe payment
+
+**Symptoms:**
+- Payment is successful in Stripe
+- No order appears in the database
+- Webhook is receiving events but not creating orders
+
+**Solution:**
+
+We've enhanced the webhook handler to handle payments regardless of how they're initiated:
+
+1. If a payment contains an `orderId` in the metadata, it updates the existing order
+2. If no `orderId` exists, it creates a new order using the payment metadata:
+   - Uses the `items` array in metadata to recreate the order
+   - Fetches menu items to calculate correct prices
+   - Creates a confirmed order with paid status
+
+This makes the system more resilient by handling both payment flows:
+- Create order first, then payment (recommended approach)
+- Create order from payment data in the webhook (fallback approach)
+
+**Implementation:**
+The webhook handler now looks for the following metadata:
+- `userId` - Required to associate the order with a user
+- `items` - JSON string with menu item IDs and quantities
+- `orderType` - PICKUP or DELIVERY
+- `pickupTime` - (Optional) When the order should be ready 

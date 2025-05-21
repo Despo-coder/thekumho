@@ -105,6 +105,8 @@ model Order {
   status              OrderStatus   @default(PENDING)
   paymentStatus       PaymentStatus @default(PENDING)
   paymentMethod       String?
+  paymentIntentId     String? // Store Stripe payment intent ID
+  chargeId            String? // Store Stripe charge ID
   orderType           OrderType     @default(DINE_IN)
   isNotified          Boolean       @default(false) // Tracks if staff has been notified
   orderNotes          String?

@@ -56,21 +56,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle the event based on its type
-    switch (event.type) {
-      case 'charge.succeeded':
-        await handleChargeSucceeded(event.data.object as Stripe.Charge);
-        break;
-      case 'payment_intent.succeeded':
-        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
-        break;
-      case 'payment_intent.payment_failed':
-        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
-        break;
-      case 'checkout.session.completed':
-        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
-        break;
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
+    try {
+      switch (event.type) {
+        case 'charge.succeeded':
+          await handleChargeSucceeded(event.data.object as Stripe.Charge);
+          break;
+        case 'payment_intent.succeeded':
+          await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+          break;
+        case 'payment_intent.payment_failed':
+          await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+          break;
+        case 'checkout.session.completed':
+          await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+          break;
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(`Error handling ${event.type} event:`, error);
+      console.error("Error stack:", error.stack);
+      // Return 200 so Stripe doesn't retry - we've logged the error and can investigate
+      return NextResponse.json(
+        { received: true, type: event.type, warning: "Event processed with errors" },
+        { status: 200 }
+      );
     }
 
     // Return a 200 success response to acknowledge receipt of the event
@@ -78,6 +89,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error processing webhook:', err.message);
+    console.error('Error stack:', err.stack);
     return NextResponse.json(
       { error: 'Error processing webhook' },
       { status: 500 }
@@ -88,6 +100,8 @@ export async function POST(req: NextRequest) {
 const handleChargeSucceeded = async (charge: Stripe.Charge) => {
   try {
     console.log('Processing charge.succeeded event:', charge.id);
+    console.log('Charge metadata:', JSON.stringify(charge.metadata || {}));
+    
     const { metadata } = charge;
     
     // Check if we have an orderId in metadata
@@ -98,6 +112,8 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
         data: {
           paymentStatus: PaymentStatus.PAID,
           paymentMethod: charge.payment_method_details?.type || 'stripe',
+          paymentIntentId: charge.payment_intent?.toString() || null,
+          chargeId: charge.id,
           statusUpdates: {
             create: {
               status: OrderStatus.CONFIRMED,
@@ -115,42 +131,123 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
       console.log('No orderId found in metadata, creating new order from charge data');
       
       // Verify we have the necessary data
-      if (!metadata?.userId || !metadata?.items) {
-        throw new Error('Missing required metadata: userId or items');
+      if (!metadata?.userId) {
+        console.error('Missing required userId in metadata');
+        throw new Error('Missing required metadata: userId');
+      }
+      
+      if (!metadata?.items) {
+        console.error('Missing required items in metadata');
+        throw new Error('Missing required metadata: items');
       }
       
       // Parse items from metadata
-      let items: Array<{menuItemId: string, quantity: number}> = [];
+      let items = [];
       try {
         items = JSON.parse(metadata.items);
+        console.log('Parsed items:', items);
       } catch (e) {
-        console.error('Failed to parse items JSON:', e);
+        console.error('Failed to parse items JSON:', e, 'Raw items string:', metadata.items);
         throw new Error('Invalid items format in metadata');
+      }
+      
+      // Verify items structure
+      if (!Array.isArray(items) || items.length === 0) {
+        console.error('Items is not a valid array or is empty:', items);
+        throw new Error('Invalid items format: not an array or empty');
       }
       
       // Fetch menu items to calculate prices
       const menuItemIds = items.map(item => item.menuItemId);
+      console.log('Looking up menu items with IDs:', menuItemIds);
+      
       const menuItems = await prisma.menuItem.findMany({
         where: { id: { in: menuItemIds } }
       });
       
+      console.log(`Found ${menuItems.length} of ${menuItemIds.length} menu items`);
+      
+      if (menuItems.length === 0) {
+        throw new Error('No menu items found with the provided IDs');
+      }
+      
       // Create order items with prices
-      const orderItems = items.map(item => {
+      const orderItems = [];
+      for (const item of items) {
         const menuItem = menuItems.find(mi => mi.id === item.menuItemId);
         if (!menuItem) {
-          throw new Error(`Menu item not found: ${item.menuItemId}`);
+          console.error(`Menu item not found: ${item.menuItemId}`);
+          continue; // Skip this item but continue with others
         }
         
-        return {
+        orderItems.push({
           menuItemId: item.menuItemId,
           quantity: item.quantity,
           price: menuItem.price,
           specialInstructions: null
-        };
-      });
+        });
+      }
+      
+      if (orderItems.length === 0) {
+        throw new Error('No valid order items could be created');
+      }
       
       // Calculate total (convert from cents)
       const total = charge.amount / 100;
+      
+      // Get order type and transform to enum if needed
+      let orderType: OrderType = OrderType.PICKUP; // Default
+      if (metadata.orderType && Object.values(OrderType).includes(metadata.orderType as OrderType)) {
+        orderType = metadata.orderType as OrderType;
+      }
+      
+      // Parse pickup time if provided
+      let pickupTime = null;
+      if (metadata.pickupTime) {
+        try {
+          // Try to parse as ISO date first
+          pickupTime = new Date(metadata.pickupTime);
+          // If not a valid date or time string, handle gracefully
+          if (isNaN(pickupTime.getTime())) {
+            // Try to parse common time formats like "04:00 p.m."
+            const today = new Date();
+            const timeParts = metadata.pickupTime.match(/(\d+):(\d+)\s*(a\.m\.|p\.m\.|am|pm)/i);
+            
+            if (timeParts) {
+              let [_, hours, minutes, period] = timeParts;
+              let hour = parseInt(hours, 10);
+              
+              // Convert to 24-hour format
+              if (period.toLowerCase().includes('p') && hour < 12) {
+                hour += 12;
+              } else if (period.toLowerCase().includes('a') && hour === 12) {
+                hour = 0;
+              }
+              
+              pickupTime = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                today.getDate(),
+                hour,
+                parseInt(minutes, 10)
+              );
+            } else {
+              pickupTime = null;
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing pickup time:', error);
+          pickupTime = null;
+        }
+      }
+      
+      console.log('Creating order with:', {
+        userId: metadata.userId,
+        total,
+        items: orderItems.length,
+        orderType,
+        pickupTime: pickupTime ? pickupTime.toISOString() : null
+      });
       
       // Create the order
       const order = await prisma.order.create({
@@ -160,11 +257,11 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
           status: OrderStatus.CONFIRMED,
           paymentStatus: PaymentStatus.PAID,
           paymentMethod: charge.payment_method_details?.type || 'stripe',
-          orderType: (metadata.orderType as OrderType) || OrderType.PICKUP,
+          paymentIntentId: charge.payment_intent?.toString() || null,
+          chargeId: charge.id,
+          orderType,
           orderNotes: metadata.orderNotes || null,
-          estimatedPickupTime: metadata.pickupTime 
-            ? new Date(metadata.pickupTime) 
-            : null,
+          estimatedPickupTime: pickupTime,
           items: {
             create: orderItems
           },
@@ -201,7 +298,9 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     metadata.orderId,
     PaymentStatus.PAID,
     OrderStatus.CONFIRMED,
-    metadata.userId || 'system'
+    metadata.userId || 'system',
+    'Payment confirmed via payment intent',
+    paymentIntent.id
   );
 }
 
@@ -241,7 +340,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       PaymentStatus.PAID,
       OrderStatus.CONFIRMED,
       metadata.userId || 'system',
-      'Payment confirmed through Stripe Checkout'
+      'Payment confirmed through Stripe Checkout',
+      typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id
     );
   }
 }
@@ -252,7 +352,9 @@ async function updateOrderPaymentStatus(
   paymentStatus: PaymentStatus,
   orderStatus: OrderStatus,
   updatedById: string,
-  note?: string
+  note?: string,
+  paymentIntentId?: string,
+  chargeId?: string
 ) {
   try {
     // First check if order exists
@@ -265,20 +367,32 @@ async function updateOrderPaymentStatus(
       return;
     }
 
+    // Prepare update data
+    const updateData: any = {
+      paymentStatus,
+      status: orderStatus,
+      statusUpdates: {
+        create: {
+          status: orderStatus,
+          note: note || `Payment status updated to ${paymentStatus}`,
+          updatedById,
+        },
+      },
+    };
+
+    // Add payment IDs if provided
+    if (paymentIntentId) {
+      updateData.paymentIntentId = paymentIntentId;
+    }
+    
+    if (chargeId) {
+      updateData.chargeId = chargeId;
+    }
+
     // Update order status
     await prisma.order.update({
       where: { id: orderId },
-      data: {
-        paymentStatus,
-        status: orderStatus,
-        statusUpdates: {
-          create: {
-            status: orderStatus,
-            note: note || `Payment status updated to ${paymentStatus}`,
-            updatedById,
-          },
-        },
-      },
+      data: updateData,
     });
 
     console.log(`Order ${orderId} payment status updated to ${paymentStatus}`);
