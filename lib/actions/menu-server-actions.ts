@@ -11,6 +11,13 @@ export async function getMenus() {
     const menus = await prisma.menu.findMany({
       orderBy: {
         createdAt: 'desc'
+      },
+      include: {
+        _count: {
+          select: {
+            items: true
+          }
+        }
       }
     });
     

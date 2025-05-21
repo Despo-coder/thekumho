@@ -2,82 +2,53 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Prisma } from "@prisma/client";
+// import { Prisma } from "@prisma/client";
 
 // GET /api/menu - Get menu items with optional filters
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const categoryId = searchParams.get('categoryId');
-    const menuId = searchParams.get('menuId');
-    const search = searchParams.get('search');
-    const dietary = searchParams.getAll('dietary');
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get("category");
+    const dietary = searchParams.get("dietary");
+    const search = searchParams.get("search");
 
-    // Build query filters
-    const where: Prisma.MenuItemWhereInput = {
-      isAvailable: true,
-    };
-
-    if (categoryId) {
-      where.categoryId = categoryId;
-    }
-
-    if (menuId) {
-      where.menuId = menuId;
-    }
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
-    // Handle dietary restrictions if provided
-    if (dietary.length > 0) {
-      dietary.forEach((diet) => {
-        switch (diet) {
-          case "vegetarian":
-            where.isVegetarian = true;
-            break;
-          case "vegan":
-            where.isVegan = true;
-            break;
-          case "pescatarian":
-            where.isPescatarian = true;
-            break;
-          case "gluten-free":
-            where.isGlutenFree = true;
-            break;
-          case "dairy-free":
-            where.isDairyFree = true;
-            break;
-          case "nut-free":
-            where.isNutFree = true;
-            break;
-        }
-      });
-    }
-
-    const menuItems = await prisma.menuItem.findMany({
-      where,
+    // Base query to fetch categories with menu items
+    const categories = await prisma.category.findMany({
       include: {
-        category: true,
-        menu: {
-          select: {
-            id: true,
-            name: true,
+        items: {
+          include: {
+            menu: true,
+            reviews: true,
+          },
+          where: {
+            isAvailable: true,
+            // Add conditions based on search params if needed
+            ...(search
+              ? {
+                  OR: [
+                    { name: { contains: search, mode: "insensitive" } },
+                    { description: { contains: search, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+            // Filter by dietary preferences if provided
+            ...(dietary === "vegetarian" ? { isVegetarian: true } : {}),
+            ...(dietary === "vegan" ? { isVegan: true } : {}),
+            ...(dietary === "glutenFree" ? { isGlutenFree: true } : {}),
+            ...(dietary === "dairyFree" ? { isDairyFree: true } : {}),
           },
         },
       },
-      orderBy: {
-        category: {
-          name: "asc",
-        },
-      },
+      // Filter by specific category if provided
+      ...(category ? { where: { id: category } } : {}),
     });
 
-    return NextResponse.json(menuItems);
+    // Filter out categories with no items (can be done client-side too)
+    const filteredCategories = categories.filter(cat => cat.items.length > 0);
+
+    return NextResponse.json({
+      categories: filteredCategories,
+    });
   } catch (error) {
     console.error("Error fetching menu items:", error);
     return NextResponse.json(

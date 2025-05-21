@@ -7,11 +7,11 @@
 - [ ] Set up user role-based permissions (Admin, User)
 
 ## 2. Menu Management
-- [ ] Create admin dashboard for menu management
-- [ ] Implement CRUD operations for menu items
-- [ ] Add dietary preference filters
-- [ ] Implement menu categories
-- [ ] Add menu item image upload functionality
+- [x] Create admin dashboard for menu management
+- [x] Implement CRUD operations for menu items
+- [x] Add dietary preference filters
+- [x] Implement menu categories
+- [x] Add menu item image upload functionality
 
 ## 3. Table Reservation System
 - [ ] Create reservation form for users

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, PlusCircle, Search, Edit, Trash2, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { getCategories, getMenus, getMenuItems, deleteMenuItem } from "@/lib/actions/menu-actions-reexport";
+import { getCategories, getMenus, getMenuItems, deleteMenuItem, deleteMenu } from "@/lib/actions/menu-actions-reexport";
 import Image from "next/image";
 
 // Type definitions
@@ -56,6 +56,7 @@ export default function MenuManagement() {
 
     // Delete state
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+    const [itemTypeToDelete, setItemTypeToDelete] = useState<'menu-item' | 'category' | 'menu'>('menu-item');
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleteError, setDeleteError] = useState("");
@@ -160,27 +161,47 @@ export default function MenuManagement() {
     };
 
     // Handle delete confirmation
-    const openDeleteConfirm = (id: string) => {
+    const openDeleteConfirm = (id: string, type: 'menu-item' | 'category' | 'menu') => {
         setItemToDelete(id);
+        setItemTypeToDelete(type);
         setDeleteConfirmOpen(true);
         setDeleteError("");
     };
 
-    // Handle delete menu item
-    const handleDeleteMenuItem = async () => {
+    // Handle delete item
+    const handleDelete = async () => {
         if (!itemToDelete) return;
 
         setIsDeleting(true);
         setDeleteError("");
 
         try {
-            const result = await deleteMenuItem(itemToDelete);
+            let result: { error?: string; success?: boolean } = { success: false };
+
+            if (itemTypeToDelete === 'menu-item') {
+                result = await deleteMenuItem(itemToDelete);
+            } else if (itemTypeToDelete === 'category') {
+                // Call delete category API
+                const response = await fetch(`/api/categories/${itemToDelete}`, {
+                    method: 'DELETE',
+                });
+                result = await response.json();
+
+                if (!response.ok) {
+                    result = { error: result.error || 'Failed to delete category' };
+                } else {
+                    result = { success: true };
+                }
+            } else if (itemTypeToDelete === 'menu') {
+                // Call delete menu API
+                result = await deleteMenu(itemToDelete);
+            }
 
             if (result.error) {
                 setDeleteError(result.error);
                 setIsDeleting(false);
             } else {
-                // Success - refresh menu items
+                // Success - close modal and refresh data
                 setIsDeleting(false);
                 setDeleteConfirmOpen(false);
                 setItemToDelete(null);
@@ -189,8 +210,8 @@ export default function MenuManagement() {
                 fetchData();
             }
         } catch (error) {
-            console.error("Error deleting menu item:", error);
-            setDeleteError("An error occurred while deleting the menu item. Please try again.");
+            console.error(`Error deleting ${itemTypeToDelete}:`, error);
+            setDeleteError(`An error occurred while deleting the ${itemTypeToDelete.replace('-', ' ')}. Please try again.`);
             setIsDeleting(false);
         }
     };
@@ -228,7 +249,13 @@ export default function MenuManagement() {
                     <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
                         <h3 className="text-lg font-bold text-gray-900 mb-4">Confirm Deletion</h3>
                         <p className="text-gray-700 mb-6">
-                            Are you sure you want to delete this menu item? This action cannot be undone.
+                            Are you sure you want to delete this {itemTypeToDelete.replace('-', ' ')}? This action cannot be undone.
+                            {(itemTypeToDelete === 'category' || itemTypeToDelete === 'menu') && (
+                                <>
+                                    <br /><br />
+                                    <strong className="text-red-600">Note:</strong> You cannot delete a {itemTypeToDelete} that has items assigned to it.
+                                </>
+                            )}
                         </p>
                         {deleteError && (
                             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md">
@@ -248,7 +275,7 @@ export default function MenuManagement() {
                             </Button>
                             <Button
                                 variant="destructive"
-                                onClick={handleDeleteMenuItem}
+                                onClick={handleDelete}
                                 disabled={isDeleting}
                             >
                                 {isDeleting ? (
@@ -372,7 +399,7 @@ export default function MenuManagement() {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                onClick={() => openDeleteConfirm(item.id)}
+                                                                onClick={() => openDeleteConfirm(item.id, 'menu-item')}
                                                             >
                                                                 <Trash2 className="h-4 w-4 text-red-500" />
                                                             </Button>
@@ -440,7 +467,11 @@ export default function MenuManagement() {
                                                                     <Edit className="h-4 w-4" />
                                                                 </Button>
                                                             </Link>
-                                                            <Button variant="ghost" size="icon">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => openDeleteConfirm(category.id, 'category')}
+                                                            >
                                                                 <Trash2 className="h-4 w-4 text-red-500" />
                                                             </Button>
                                                         </div>
@@ -520,7 +551,9 @@ export default function MenuManagement() {
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {menu._count?.items || 0}
+                                                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">
+                                                            {menu._count?.items || 0}
+                                                        </span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                         <div className="flex items-center space-x-2">
@@ -529,7 +562,11 @@ export default function MenuManagement() {
                                                                     <Edit className="h-4 w-4" />
                                                                 </Button>
                                                             </Link>
-                                                            <Button variant="ghost" size="icon">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => openDeleteConfirm(menu.id, 'menu')}
+                                                            >
                                                                 <Trash2 className="h-4 w-4 text-red-500" />
                                                             </Button>
                                                         </div>

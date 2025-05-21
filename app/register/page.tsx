@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -11,6 +11,15 @@ export default function RegisterPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isRedirectingFromCheckout, setIsRedirectingFromCheckout] = useState(false);
+
+    // Check if user is being redirected from checkout
+    useEffect(() => {
+        const checkoutRedirect = localStorage.getItem('checkoutRedirect');
+        if (checkoutRedirect === 'true') {
+            setIsRedirectingFromCheckout(true);
+        }
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,6 +44,7 @@ export default function RegisterPage() {
                 throw new Error(data.message || "Something went wrong");
             }
 
+            // Don't remove the checkout redirect here, let the login page handle it
             router.push("/login?registered=true");
         } catch (error) {
             if (error instanceof Error) {
@@ -62,6 +72,12 @@ export default function RegisterPage() {
                             sign in to your existing account
                         </Link>
                     </p>
+
+                    {isRedirectingFromCheckout && (
+                        <div className="mt-4 rounded-md bg-orange-50 p-3 text-sm text-orange-700 border border-orange-200">
+                            Please create an account to complete your order. Your cart items will be preserved.
+                        </div>
+                    )}
                 </div>
 
                 {error && (

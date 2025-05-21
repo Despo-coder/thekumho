@@ -116,6 +116,17 @@ The authentication system uses NextAuth.js, which provides the following endpoin
   - 200: Success
   - 500: Server error
 
+### `GET /api/menu/:id`
+- Fetches a specific menu item by ID with full details
+- URL Parameters:
+  - `id`: Menu item ID
+- Authentication: Not required
+- Returns: Menu item object with category, menu, and reviews
+- Status codes:
+  - 200: Success
+  - 404: Item not found
+  - 500: Server error
+
 ### `POST /api/menu` (Admin only)
 - Creates a new menu item
 - Parameters:
@@ -163,6 +174,128 @@ The authentication system uses NextAuth.js, which provides the following endpoin
   - 401: Unauthorized
   - 403: Forbidden
   - 404: Item not found
+  - 500: Server error
+
+## Category Endpoints
+
+### `GET /api/categories`
+- Fetches all menu categories
+- Authentication: Not required
+- Returns: Array of category objects
+- Status codes:
+  - 200: Success
+  - 500: Server error
+
+### `POST /api/categories` (Admin only)
+- Creates a new menu category
+- Parameters:
+  - `name`: Category name
+  - `description` (optional): Category description
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Created category
+- Status codes:
+  - 201: Category created successfully
+  - 400: Invalid input
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 500: Server error
+
+### `PUT /api/categories/:id` (Admin only)
+- Updates an existing category
+- URL Parameters:
+  - `id`: Category ID
+- Body Parameters:
+  - `name`: Category name
+  - `description` (optional): Category description
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Updated category
+- Status codes:
+  - 200: Category updated successfully
+  - 400: Invalid input
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Category not found
+  - 500: Server error
+
+### `DELETE /api/categories/:id` (Admin only)
+- Deletes a category
+- URL Parameters:
+  - `id`: Category ID
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Success message
+- Status codes:
+  - 200: Category deleted successfully
+  - 400: Cannot delete category with items
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Category not found
+  - 500: Server error
+
+## Menu Endpoints (Menus collection)
+
+### `GET /api/menu/menus`
+- Fetches all menus
+- Query Parameters:
+  - `includeCount` (optional): Include item count in response
+- Authentication: Not required
+- Returns: Array of menu objects
+- Status codes:
+  - 200: Success
+  - 500: Server error
+
+### `POST /api/menu/menus` (Admin only)
+- Creates a new menu
+- Parameters:
+  - `name`: Menu name
+  - `description` (optional): Menu description
+  - `isActive`: Whether the menu is active
+  - `isPickup`: Whether the menu is available for pickup
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Created menu
+- Status codes:
+  - 201: Menu created successfully
+  - 400: Invalid input
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 500: Server error
+
+### `PUT /api/menu/menus/:id` (Admin only)
+- Updates an existing menu
+- URL Parameters:
+  - `id`: Menu ID
+- Body Parameters:
+  - `name`: Menu name
+  - `description` (optional): Menu description
+  - `isActive`: Whether the menu is active
+  - `isPickup`: Whether the menu is available for pickup
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Updated menu
+- Status codes:
+  - 200: Menu updated successfully
+  - 400: Invalid input
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Menu not found
+  - 500: Server error
+
+### `DELETE /api/menu/menus/:id` (Admin only)
+- Deletes a menu
+- URL Parameters:
+  - `id`: Menu ID
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Success message
+- Status codes:
+  - 200: Menu deleted successfully
+  - 400: Cannot delete menu with items
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Menu not found
   - 500: Server error
 
 ## Review Endpoints

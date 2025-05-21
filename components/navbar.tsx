@@ -1,10 +1,11 @@
 'use client'
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { signOut, useSession } from "next-auth/react"
+import { useCart } from "@/lib/cart/CartContext"
 import {
     User,
     LogOut,
@@ -12,13 +13,38 @@ import {
     X,
     ShoppingCart,
     CalendarDays,
-    UtensilsCrossed
+    UtensilsCrossed,
+    Settings,
+    Clock
 } from "lucide-react"
 
 export function Navbar() {
     const { data: session, status } = useSession()
     const pathname = usePathname()
+    const router = useRouter()
     const [menuOpen, setMenuOpen] = useState(false)
+    const [userMenuOpen, setUserMenuOpen] = useState(false)
+    const { cart } = useCart()
+    const [mounted, setMounted] = useState(false)
+    const userMenuRef = useRef<HTMLDivElement>(null)
+
+    // Use client-side rendering to prevent hydration mismatch
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    // Handle click outside user menu to close it
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+                setUserMenuOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [])
 
     // Define main navigation links
     const navLinks = [
@@ -32,6 +58,15 @@ export function Navbar() {
         if (path === "/" && pathname === "/") return true
         if (path !== "/" && pathname.startsWith(path)) return true
         return false
+    }
+
+    // Handle avatar click
+    const handleAvatarClick = () => {
+        if (!session) {
+            router.push('/login')
+        } else {
+            setUserMenuOpen(!userMenuOpen)
+        }
     }
 
     return (
@@ -68,50 +103,84 @@ export function Navbar() {
                         </Link>
                     ))}
 
-                    {/* Auth buttons based on session state */}
-                    {status === "loading" ? (
-                        <div className="h-10 w-20 bg-gray-100 animate-pulse rounded"></div>
-                    ) : session ? (
-                        <div className="flex items-center gap-4">
-                            {session.user.role === "ADMIN" && (
-                                <Link
-                                    href="/admin"
-                                    className="text-sm font-medium text-gray-700 hover:text-orange-500"
-                                >
-                                    Dashboard
-                                </Link>
+                    <div className="flex items-center gap-3">
+                        {/* Cart icon with item count */}
+                        {mounted && (
+                            <Link href="/cart" className="relative p-2">
+                                <ShoppingCart className="w-5 h-5 text-gray-700 hover:text-orange-500" />
+                                {cart.totalItems > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                        {cart.totalItems}
+                                    </span>
+                                )}
+                            </Link>
+                        )}
+
+                        {/* User avatar */}
+                        <div className="relative" ref={userMenuRef}>
+                            <button
+                                onClick={handleAvatarClick}
+                                className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                                aria-label={session ? "User menu" : "Login"}
+                            >
+                                <User className="w-5 h-5 text-gray-700" />
+                            </button>
+
+                            {/* User dropdown menu */}
+                            {userMenuOpen && session && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                                    <div className="px-4 py-2 border-b border-gray-100">
+                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                            {session.user.name || "User"}
+                                        </p>
+                                        <p className="text-xs text-gray-500 truncate">
+                                            {session.user.email}
+                                        </p>
+                                    </div>
+
+                                    {session.user.role === "ADMIN" && (
+                                        <Link
+                                            href="/admin"
+                                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                            onClick={() => setUserMenuOpen(false)}
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            Dashboard
+                                        </Link>
+                                    )}
+
+                                    <Link
+                                        href="/orders"
+                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                        onClick={() => setUserMenuOpen(false)}
+                                    >
+                                        <ShoppingCart className="w-4 h-4" />
+                                        My Orders
+                                    </Link>
+
+                                    <Link
+                                        href="/reservation/my"
+                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                        onClick={() => setUserMenuOpen(false)}
+                                    >
+                                        <Clock className="w-4 h-4" />
+                                        My Reservations
+                                    </Link>
+
+                                    <button
+                                        onClick={() => {
+                                            setUserMenuOpen(false)
+                                            signOut({ callbackUrl: "/" })
+                                        }}
+                                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        Logout
+                                    </button>
+                                </div>
                             )}
-                            <Link
-                                href="/orders"
-                                className="text-sm font-medium text-gray-700 hover:text-orange-500 flex items-center gap-1"
-                            >
-                                <ShoppingCart className="w-4 h-4" />
-                                <span>Orders</span>
-                            </Link>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="gap-2"
-                                onClick={() => signOut({ callbackUrl: "/" })}
-                            >
-                                <LogOut className="w-4 h-4" />
-                                <span>Logout</span>
-                            </Button>
                         </div>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <Link href="/login">
-                                <Button variant="ghost" size="sm">
-                                    Sign in
-                                </Button>
-                            </Link>
-                            <Link href="/register">
-                                <Button className="bg-orange-500 hover:bg-orange-600" size="sm">
-                                    Sign up
-                                </Button>
-                            </Link>
-                        </div>
-                    )}
+                    </div>
                 </nav>
             </div>
 
@@ -135,6 +204,25 @@ export function Navbar() {
                         </Link>
                     ))}
 
+                    {/* Cart link in mobile menu */}
+                    {mounted && (
+                        <Link
+                            href="/cart"
+                            className="flex items-center gap-2 text-sm font-medium py-2 text-gray-700"
+                            onClick={() => setMenuOpen(false)}
+                        >
+                            <div className="relative">
+                                <ShoppingCart className="w-4 h-4" />
+                                {cart.totalItems > 0 && (
+                                    <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                                        {cart.totalItems}
+                                    </span>
+                                )}
+                            </div>
+                            Cart
+                        </Link>
+                    )}
+
                     <div className="h-px w-full bg-gray-100 my-1"></div>
 
                     {status === "loading" ? (
@@ -152,6 +240,7 @@ export function Navbar() {
                                     className="flex items-center gap-2 text-sm font-medium py-2 text-gray-700"
                                     onClick={() => setMenuOpen(false)}
                                 >
+                                    <Settings className="w-4 h-4" />
                                     Dashboard
                                 </Link>
                             )}
@@ -163,6 +252,15 @@ export function Navbar() {
                             >
                                 <ShoppingCart className="w-4 h-4" />
                                 My Orders
+                            </Link>
+
+                            <Link
+                                href="/reservation/my"
+                                className="flex items-center gap-2 text-sm font-medium py-2 text-gray-700"
+                                onClick={() => setMenuOpen(false)}
+                            >
+                                <Clock className="w-4 h-4" />
+                                My Reservations
                             </Link>
 
                             <Button
@@ -178,18 +276,12 @@ export function Navbar() {
                             </Button>
                         </>
                     ) : (
-                        <div className="flex flex-col gap-2 pt-2">
-                            <Link href="/login" onClick={() => setMenuOpen(false)}>
-                                <Button variant="outline" className="w-full">
-                                    Sign in
-                                </Button>
-                            </Link>
-                            <Link href="/register" onClick={() => setMenuOpen(false)}>
-                                <Button className="w-full bg-orange-500 hover:bg-orange-600">
-                                    Sign up
-                                </Button>
-                            </Link>
-                        </div>
+                        <Link href="/login" onClick={() => setMenuOpen(false)}>
+                            <Button variant="outline" className="w-full flex items-center gap-2">
+                                <User className="w-4 h-4" />
+                                Login / Sign Up
+                            </Button>
+                        </Link>
                     )}
                 </nav>
             )}

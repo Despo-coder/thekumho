@@ -16,6 +16,14 @@ This folder contains comprehensive documentation for the Restaurant Application.
 10. [Development Workflow](./development-workflow.md) - Development process and guidelines
 11. [Development Checklist](./development-checklist.md) - Project development checklist
 12. [Admin Action Points](./admin-action-points.md) - Priority tasks for admin feature development
+13. [UploadThing Setup](./uploadthing-setup.md) - Integration guide for image uploads
+14. [Lessons Learned](./lessons.md) - Development challenges and solutions
+
+## Key Technical Information
+
+1. **Next.js 15 Dynamic Routes** - Dynamic route parameters are Promise-based and must be handled correctly in both client and server components (see [Lessons Learned](./lessons.md)).
+2. **React Performance** - Use useCallback for functions in useEffect dependencies to prevent unnecessary renders.
+3. **Image Handling** - Always specify width and height when using Next.js Image components to avoid layout shifts.
 
 ## How to Use This Documentation
 

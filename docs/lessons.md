@@ -43,26 +43,47 @@ if (data.parentId !== existingCategory.parentId) {
 - API routes need to handle Promise-based parameters
 - Error handling should account for Promise rejection
 
-**Solution Example for Page Routes:**
+**Client Component Solution:**
 ```typescript
-interface DynamicPageProps {
+// For client components, use React.use() to unwrap the params Promise
+import React from "react";
+
+interface ClientComponentProps {
+    params: Promise<{ id: string }>;
+}
+
+export default function ClientComponent({ params }: ClientComponentProps) {
+    const resolvedParams = React.use(params);
+    const id = resolvedParams.id;
+    
+    // ... rest of the component
+}
+```
+
+**Server Component Solution:**
+```typescript
+interface ServerComponentProps {
     params: Promise<{
         id: string;
     }>;
 }
 
-export default async function DynamicPage({ params }: DynamicPageProps) {
+export default async function ServerComponent({ params }: ServerComponentProps) {
     const resolvedParams = await params;
     const id = resolvedParams.id;
     // ... rest of the component
 }
 ```
 
-**Solution Example for API Routes:**
+**API Route Solution:**
 ```typescript
+export interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
 export async function GET(
     request: Request,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: RouteParams
 ) {
     try {
         const resolvedParams = await params;
@@ -77,12 +98,18 @@ export async function GET(
 }
 ```
 
+**Common TypeScript Errors:**
+- `Type '{ id: string; }' is not assignable to parameter of type 'Usable<unknown>'`
+- `Type '{ id: string; }' is missing properties from type 'Promise<any>'`
+
 **Key Points:**
 1. Always await params before accessing properties
 2. Update TypeScript interfaces to reflect Promise-based params
 3. Handle potential Promise rejection in API routes
 4. Consider loading states while params are resolving
 5. Use error boundaries for failed parameter resolution
+6. In client components, use React.use() instead of await
+7. Ensure all props interfaces correctly type params as a Promise
 
 ### 4. Form Design and UX
 
@@ -649,3 +676,34 @@ export function ProductTypeForm({ onSubmit }: ProductTypeFormProps) {
   * Handle database constraints gracefully
   * Log errors appropriately for debugging
   * Consider implementing retry logic for transient failures
+
+### 4. React Performance Optimization
+
+**Challenge:** Preventing unnecessary renders due to function recreations in useEffect dependencies.
+
+**Lesson:** Functions defined in component scope are recreated on each render, causing useEffect to run more often than necessary.
+
+**Solution:**
+```typescript
+import { useCallback } from 'react';
+
+// Wrap functions used in useEffect in useCallback
+const fetchData = useCallback(async () => {
+    try {
+        // Function logic here
+    } catch (error) {
+        console.error("Error:", error);
+    }
+}, []); // Empty dependency array for functions with no dependencies
+
+useEffect(() => {
+    // Effect using the memoized function
+    fetchData();
+}, [fetchData]); // Now fetchData is stable between renders
+```
+
+**Key Points:**
+1. Use useCallback for functions in useEffect dependencies
+2. Include all dependencies the function uses in the useCallback dependency array
+3. For simple data fetching that doesn't depend on props/state, an empty array is appropriate
+4. This pattern reduces unnecessary API calls and renders

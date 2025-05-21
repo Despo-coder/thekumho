@@ -579,4 +579,367 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+```
+
+## Context Providers
+
+### `AuthProvider`
+
+Wraps the application with the NextAuth SessionProvider to provide authentication state.
+
+```tsx
+// app/providers.tsx
+'use client';
+
+import { SessionProvider } from "next-auth/react";
+
+export default function Providers({ children }: { children: React.ReactNode }) {
+  return <SessionProvider>{children}</SessionProvider>;
+}
+```
+
+### `CartProvider`
+
+Manages the shopping cart state across the application.
+
+```tsx
+// lib/cart/CartContext.tsx
+'use client';
+
+import { createContext, useContext, useEffect, useState } from "react";
+
+type CartItem = {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  specialInstructions?: string;
+  image?: string | null;
+};
+
+type CartContextType = {
+  items: CartItem[];
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (menuItemId: string) => void;
+  updateQuantity: (menuItemId: string, quantity: number) => void;
+  clearCart: () => void;
+  itemCount: number;
+  total: number;
+};
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>([]);
+  
+  // Initialize cart from localStorage
+  useEffect(() => {
+    try {
+      const savedCart = localStorage.getItem('cart');
+      if (savedCart) {
+        setItems(JSON.parse(savedCart));
+      }
+    } catch (error) {
+      console.error('Error loading cart from localStorage', error);
+    }
+  }, []);
+  
+  // Save cart to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(items));
+  }, [items]);
+  
+  // Calculate total
+  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  
+  // Calculate item count
+  const itemCount = items.reduce((count, item) => count + item.quantity, 0);
+  
+  // Add item to cart
+  const addToCart = (newItem: CartItem) => {
+    setItems(currentItems => {
+      const existingItem = currentItems.find(item => item.menuItemId === newItem.menuItemId);
+      
+      if (existingItem) {
+        return currentItems.map(item => 
+          item.menuItemId === newItem.menuItemId 
+            ? { ...item, quantity: item.quantity + newItem.quantity, specialInstructions: newItem.specialInstructions || item.specialInstructions }
+            : item
+        );
+      } else {
+        return [...currentItems, newItem];
+      }
+    });
+  };
+  
+  // Remove item from cart
+  const removeFromCart = (menuItemId: string) => {
+    setItems(currentItems => currentItems.filter(item => item.menuItemId !== menuItemId));
+  };
+  
+  // Update item quantity
+  const updateQuantity = (menuItemId: string, quantity: number) => {
+    setItems(currentItems => 
+      currentItems.map(item => 
+        item.menuItemId === menuItemId ? { ...item, quantity } : item
+      )
+    );
+  };
+  
+  // Clear cart
+  const clearCart = () => {
+    setItems([]);
+  };
+  
+  return (
+    <CartContext.Provider value={{ 
+      items, 
+      addToCart, 
+      removeFromCart, 
+      updateQuantity, 
+      clearCart, 
+      itemCount,
+      total
+    }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+export function useCart() {
+  const context = useContext(CartContext);
+  if (context === undefined) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+}
+```
+
+## Order System Components
+
+### `CartButton`
+
+Navigation bar button that displays the current cart item count and provides a dropdown to view cart contents.
+
+```tsx
+// components/cart/CartButton.tsx
+'use client';
+
+import { ShoppingCart } from "lucide-react";
+import { useCart } from "@/lib/cart/CartContext";
+import Link from "next/link";
+import { formatCurrency } from "@/lib/utils";
+
+export function CartButton() {
+  const { items, itemCount, total, removeFromCart } = useCart();
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const toggleCart = () => setIsOpen(!isOpen);
+  
+  return (
+    <div className="relative">
+      <button 
+        onClick={toggleCart}
+        className="flex items-center text-gray-700 hover:text-orange-600"
+      >
+        <ShoppingCart className="h-6 w-6" />
+        {itemCount > 0 && (
+          <span className="absolute -top-2 -right-2 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+            {itemCount}
+          </span>
+        )}
+      </button>
+      
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-72 bg-white shadow-xl rounded-md z-50">
+          <div className="p-4">
+            <h3 className="text-lg font-bold border-b pb-2">Your Cart</h3>
+            
+            {items.length === 0 ? (
+              <p className="py-4 text-center text-gray-500">Your cart is empty</p>
+            ) : (
+              <>
+                <ul className="divide-y">
+                  {items.map(item => (
+                    <li key={item.menuItemId} className="py-2 flex">
+                      <div className="flex-grow">
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {item.quantity} × {formatCurrency(item.price)}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => removeFromCart(item.menuItemId)}
+                        className="text-red-500 text-sm hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                
+                <div className="border-t mt-2 pt-2 flex justify-between font-bold">
+                  <span>Total:</span>
+                  <span>{formatCurrency(total)}</span>
+                </div>
+                
+                <div className="mt-4">
+                  <Link
+                    href="/cart"
+                    className="block w-full bg-orange-600 hover:bg-orange-700 text-white text-center py-2 rounded-md"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    View Cart
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### `CartPage`
+
+A dedicated page component for reviewing and managing cart contents.
+
+```tsx
+// app/cart/page.tsx
+'use client';
+
+import { Minus, Plus, Trash } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { useCart } from "@/lib/cart/CartContext";
+import { formatCurrency } from "@/lib/utils";
+
+export default function CartPage() {
+  const { items, removeFromCart, updateQuantity, total, itemCount } = useCart();
+  
+  const handleQuantityChange = (menuItemId: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    updateQuantity(menuItemId, newQuantity);
+  };
+  
+  return (
+    <div className="container mx-auto py-12 px-4">
+      <h1 className="text-3xl font-bold mb-8">Your Cart</h1>
+      
+      {items.length === 0 ? (
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-medium mb-4">Your cart is empty</h2>
+          <p className="mb-8 text-gray-600">Add some delicious items from our menu!</p>
+          <Link 
+            href="/menu" 
+            className="inline-block bg-orange-600 hover:bg-orange-700 text-white py-2 px-6 rounded-md"
+          >
+            Browse Menu
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2">
+            <ul className="divide-y">
+              {items.map(item => (
+                <li key={item.menuItemId} className="py-6 flex">
+                  <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                    {item.image ? (
+                      <Image 
+                        src={item.image} 
+                        alt={item.name}
+                        width={96}
+                        height={96}
+                        className="h-full w-full object-cover object-center"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-500 text-sm">No image</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="ml-4 flex flex-1 flex-col">
+                    <div>
+                      <div className="flex justify-between text-base font-medium">
+                        <h3>{item.name}</h3>
+                        <p className="ml-4">{formatCurrency(item.price * item.quantity)}</p>
+                      </div>
+                      {item.specialInstructions && (
+                        <p className="mt-1 text-sm text-gray-500">
+                          {item.specialInstructions}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-1 items-end justify-between text-sm">
+                      <div className="flex items-center border rounded-md">
+                        <button
+                          onClick={() => handleQuantityChange(item.menuItemId, item.quantity - 1)}
+                          className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="px-3 py-1 border-l border-r">{item.quantity}</span>
+                        <button
+                          onClick={() => handleQuantityChange(item.menuItemId, item.quantity + 1)}
+                          className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(item.menuItemId)}
+                        className="text-red-600 hover:text-red-800 flex items-center"
+                      >
+                        <Trash className="h-4 w-4 mr-1" />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          
+          <div className="bg-gray-50 p-6 rounded-lg h-fit">
+            <h2 className="text-lg font-medium mb-4">Order Summary</h2>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <p>Subtotal ({itemCount} items)</p>
+                <p>{formatCurrency(total)}</p>
+              </div>
+              
+              <div className="border-t border-gray-200 my-4 pt-4">
+                <div className="flex justify-between font-medium text-lg">
+                  <p>Total</p>
+                  <p>{formatCurrency(total)}</p>
+                </div>
+              </div>
+              
+              <Link
+                href="/checkout"
+                className="mt-6 block w-full bg-orange-600 hover:bg-orange-700 text-white text-center py-3 rounded-md font-medium"
+              >
+                Proceed to Checkout
+              </Link>
+              
+              <Link
+                href="/menu"
+                className="mt-2 block w-full text-center py-2 text-orange-600 hover:text-orange-700"
+              >
+                Continue Shopping
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 ``` 

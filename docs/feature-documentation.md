@@ -27,7 +27,7 @@ The authentication system manages user accounts, login/logout functionality, and
 
 ### Overview
 
-The menu system displays restaurant menu items organized by categories, with filtering capabilities for dietary preferences.
+The menu system displays restaurant menu items organized by categories, with filtering capabilities for dietary preferences. The system includes both customer-facing browsing and admin management functionality.
 
 ### Implementation Details
 
@@ -35,6 +35,8 @@ The menu system displays restaurant menu items organized by categories, with fil
 - **Dietary Preferences**: Filters for vegetarian, vegan, gluten-free, etc.
 - **Dynamic Display**: Server-side fetching of menu data from the database
 - **Search Capability**: Allows users to search for menu items
+- **Admin Management**: Complete CRUD operations for menu items, categories, and menus
+- **Menu Item Detail Pages**: Detailed pages for each menu item with descriptions, images, and reviews
 
 ### User Experience
 
@@ -46,7 +48,8 @@ The menu system displays restaurant menu items organized by categories, with fil
    - Description
    - Dietary information (vegetarian, vegan, gluten-free, etc.)
    - Image (if available)
-5. Users can click on items for more details or to add to their order
+5. Users can click on items to view detailed information and add to cart
+6. Administrators can manage menu items, categories, and menus through the admin dashboard
 
 ## 3. Reservation System
 
@@ -84,27 +87,36 @@ The reservation system allows customers to book tables for specific dates and ti
 
 ### Overview
 
-The order system allows customers to place food orders for pickup, tracks order status, and allows staff to manage orders.
+The order system allows customers to place food orders for pickup, tracks order status, and allows staff to manage orders. The system includes a shopping cart, checkout process, and order tracking.
 
 ### Implementation Details
 
-- **Shopping Cart**: Allows users to add multiple items
-- **Checkout Process**: Collects order details and payment information
-- **Order Tracking**: Keeps customers informed about their order status
-- **Staff Interface**: Dashboard for staff to manage and update orders
+- **Menu Item Detail**: Individual pages for each menu item with add to cart functionality
+- **Shopping Cart**: Client-side cart with localStorage persistence using CartContext
+- **Quantity Control**: Ability to adjust item quantities in the cart
+- **Special Instructions**: Users can add special instructions to items
+- **Checkout Process**: User-friendly flow for confirming and placing orders
+- **Cart UI Components**: Cart dropdown and dedicated cart page
+- **Responsive Design**: Mobile-friendly cart and checkout experience
 
 ### User Experience
 
 #### Customer Flow
-1. Customer browses the menu and adds items to their cart
-2. Cart shows selected items, quantities, and total price
-3. Customer proceeds to checkout
-4. System collects necessary information:
+1. Customer browses the menu and views details for items of interest
+2. On the menu item detail page, customer can:
+   - View complete item details and dietary information
+   - Select quantity
+   - Add special instructions
+   - Add the item to their cart
+3. Cart shows selected items, quantities, and total price through the CartButton in the navbar
+4. Customer can review cart contents and make adjustments
+5. Customer proceeds to checkout where they provide:
+   - Contact information
    - Pickup time
    - Special instructions
    - Payment details
-5. Customer receives order confirmation
-6. Customer can track order status on the `/orders` page
+6. Customer receives order confirmation
+7. Customer can track order status on the confirmation page
 
 #### Staff Flow
 1. New orders appear in the admin dashboard
@@ -161,10 +173,14 @@ The admin dashboard provides staff with tools to manage all aspects of the resta
 - Table assignment management
 
 #### Menu Tab (for managers/admins)
-- CRUD operations for menu items
-- Category management
-- Dietary tag management
-- Menu availability controls
+- Complete CRUD operations for menu items, categories, and menus
+- Menu items with detailed properties (name, description, price, image, dietary flags)
+- Category management with item counts and descriptions
+- Menu management with active status and pickup availability toggles
+- Image upload functionality for menu items
+- Delete functionality with safeguards to prevent orphaned items
+- Detailed edit forms for all menu components
+- Menu item filtering by category, search, and dietary preferences
 
 #### Users Tab (for admins only)
 - User account management

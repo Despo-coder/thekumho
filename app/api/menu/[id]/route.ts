@@ -9,18 +9,32 @@ export interface MenuItemParams {
 
 // GET /api/menu/[id] - Get a specific menu item
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: MenuItemParams
 ) {
   try {
     const resolvedParams = await params;
-    const { id } = resolvedParams;
+    const id = resolvedParams.id;
 
     const menuItem = await prisma.menuItem.findUnique({
-      where: { id },
+      where: {
+        id,
+      },
       include: {
         category: true,
         menu: true,
+        reviews: {
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
       },
     });
 
