@@ -37,8 +37,8 @@ export default function OrdersPage() {
                     setLoading(true);
                     const result = await getUserOrders(session.user.id);
 
-                    if (result.success && result.orders) {
-                        setOrders(result.orders);
+                    if (result.orders && result.orders) {
+                        setOrders(result.orders as unknown as OrderWithItems[]);
                     } else {
                         setError(result.error || "Failed to load orders");
                     }
@@ -131,8 +131,8 @@ export default function OrdersPage() {
             setError("");
             const result = await getUserOrders(session.user.id);
 
-            if (result.success && result.orders) {
-                setOrders(result.orders);
+            if (result.orders && result.orders) {
+                setOrders(result.orders as unknown as OrderWithItems[]);
             } else {
                 setError(result.error || "Failed to refresh orders");
             }

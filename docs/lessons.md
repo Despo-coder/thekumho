@@ -897,3 +897,63 @@ const lineItems = items.map(item => ({
 2. Remember to convert dollars to cents for Stripe (multiply by 100)
 3. Use Math.round() to avoid floating-point issues
 4. Be consistent with price handling throughout the codebase
+
+## TypeScript Best Practices
+
+### 6. Proper Type Definitions for API Responses
+
+**Challenge:** Handling TypeScript errors with API data structures, particularly in the menu management system.
+
+**Lesson:** Always define explicit types for API responses and data transformations:
+- Create comprehensive type definitions for all API responses
+- Explicitly type arrays and transformation results
+- Include optional properties for error handling
+- Type function parameters in callbacks
+
+**Solution:**
+
+We resolved TypeScript errors in our menu management system by implementing proper type definitions:
+
+```typescript
+// Define explicit types for API responses
+type MenuItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number | bigint;
+  image: string | null;
+  isAvailable: boolean;
+  menu: { id: string; name: string };
+};
+
+type Category = {
+  id: string;
+  name: string;
+  items: MenuItem[];
+};
+
+type MenuApiResponse = {
+  categories?: Category[];
+  error?: string;
+};
+
+// Explicitly type transformation results
+let menuItems: (MenuItem & { category: { id: string; name: string } })[] = [];
+
+// Type function parameters in callbacks
+data.categories.forEach((category: Category) => {
+  if (category.items && Array.isArray(category.items)) {
+    // Add category info to each item
+    const itemsWithCategory = category.items.map((item: MenuItem) => ({
+      ...item,
+      category: {
+        id: category.id,
+        name: category.name
+      }
+    }));
+    menuItems = [...menuItems, ...itemsWithCategory];
+  }
+});
+```
+
+This approach ensures type safety throughout the application and provides better developer experience with intelligent code completion and early error detection.

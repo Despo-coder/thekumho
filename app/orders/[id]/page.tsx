@@ -45,8 +45,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     setLoading(true);
                     const result = await getOrderById(orderId);
 
-                    if (result.success && result.orders && result.orders.length > 0) {
-                        setOrder(result.orders[0]);
+                    if (result.order) {
+                        setOrder(result.order as unknown as OrderWithItems);
                     } else {
                         setError(result.error || 'Order not found');
                     }

@@ -563,3 +563,57 @@ If you've tried the solutions in this guide and are still experiencing issues:
 3. **Check Next.js version compatibility:**
    - Ensure your code follows latest Next.js 15 patterns
    - Review the Next.js documentation for route handlers 
+
+## TypeScript Errors
+
+### Problem: Type errors in menu management system
+
+**Symptoms:**
+- Error: `Variable 'menuItems' implicitly has type 'any[]' in some locations where its type cannot be determined`
+- Error: `Property 'error' does not exist on type 'MenuApiResponse'`
+- Menu items, categories, or menus don't display in the admin dashboard
+
+**Solution:**
+
+We fixed these issues by properly typing the data structures in `menu-actions.ts`:
+
+1. Added explicit type definitions for API responses:
+   ```typescript
+   type MenuItem = {
+     id: string;
+     name: string;
+     description: string | null;
+     price: number | bigint;
+     image: string | null;
+     isAvailable: boolean;
+     menu: { id: string; name: string };
+   };
+
+   type Category = {
+     id: string;
+     name: string;
+     items: MenuItem[];
+   };
+
+   type MenuApiResponse = {
+     categories?: Category[];
+     error?: string;
+   };
+   ```
+
+2. Properly typed the `menuItems` array to avoid 'any[]' type errors:
+   ```typescript
+   let menuItems: (MenuItem & { category: { id: string; name: string } })[] = [];
+   ```
+
+3. Added type annotations to forEach and map callbacks:
+   ```typescript
+   data.categories.forEach((category: Category) => {
+     // ...
+     const itemsWithCategory = category.items.map((item: MenuItem) => ({
+       // ...
+     }));
+   });
+   ```
+
+This ensures proper type checking and prevents runtime errors when accessing properties of these objects. 

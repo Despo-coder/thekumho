@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { createOrder } from '@/lib/actions/order-actions';
 import { OrderType } from '@prisma/client';
+import { getStripeInstance } from "@/lib/stripe/config";
 
 // Define CartItem type inline
 type CartItem = {
@@ -14,6 +15,7 @@ type CartItem = {
   quantity: number;
   image?: string | null;
   specialInstructions?: string | null;
+  menuItemId: string;
 };
 
 // Initialize Stripe with the secret API key
@@ -22,6 +24,19 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 type CheckoutActionResult = {
   success: boolean;
   url?: string;
+  error?: string;
+};
+
+type CheckoutData = {
+  orderType: OrderType;
+  orderNotes?: string;
+  pickupTime?: string;
+};
+
+type PaymentResult = {
+  success: boolean;
+  clientSecret?: string | null;
+  orderId?: string;
   error?: string;
 };
 
@@ -51,17 +66,15 @@ export async function createCheckoutSession(
     }
 
     // Calculate the total price
-    const total = cart.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+    // const total = cart.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
 
     // First create the order in our database
     const orderResult = await createOrder(userId, {
-      total,
       orderType: orderData.orderType,
       orderNotes: orderData.orderNotes,
       items: cart.map(item => ({
-        menuItemId: item.id,
+        menuItemId: item.menuItemId,
         quantity: item.quantity,
-        price: Number(item.price),
         specialInstructions: item.specialInstructions
       }))
     });
@@ -149,4 +162,95 @@ export async function redirectToCheckout(
 
   // Redirect to Stripe checkout
   redirect(result.url);
+}
+
+/**
+ * Creates a payment intent for an order
+ * This function:
+ * 1. Creates the order in the database
+ * 2. Creates a Stripe payment intent for the order
+ * 3. Returns the client secret for frontend payment processing
+ */
+export async function createPaymentIntent(
+  userId: string,
+  cart: CartItem[],
+  checkoutData: CheckoutData
+): Promise<PaymentResult> {
+  try {
+    if (!userId) {
+      return { success: false, error: "User ID is required" };
+    }
+    
+    if (!cart || cart.length === 0) {
+      return { success: false, error: "Cart cannot be empty" };
+    }
+
+    // Step 1: Create order in database first
+    const orderResult = await createOrder(userId, {
+      items: cart.map(item => ({
+        menuItemId: item.menuItemId,
+        quantity: item.quantity,
+        specialInstructions: item.specialInstructions
+      })),
+      orderType: checkoutData.orderType,
+      orderNotes: checkoutData.orderNotes,
+      pickupTime: checkoutData.pickupTime
+    });
+
+    if (!orderResult.success || !orderResult.orderId) {
+      return { success: false, error: orderResult.error || "Failed to create order" };
+    }
+
+    // Step 2: Fetch the created order to get total
+    const orderData = await prisma.order.findUnique({
+      where: { id: orderResult.orderId },
+      include: {
+        items: {
+          include: {
+            menuItem: true
+          }
+        }
+      }
+    });
+
+    if (!orderData) {
+      return { success: false, error: "Created order not found" };
+    }
+
+    // Step 3: Create Stripe payment intent
+    const stripe = getStripeInstance();
+    if (!stripe) {
+      return { success: false, error: "Stripe configuration error" };
+    }
+
+    // Calculate amount in cents for Stripe
+    const amount = Math.round(Number(orderData.total) * 100);
+    
+    // Create a payment intent with orderId in metadata
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: "usd",
+      metadata: {
+        orderId: orderResult.orderId,
+        userId,
+        orderType: checkoutData.orderType,
+        pickupTime: checkoutData.pickupTime || "",
+        // Include other relevant metadata
+      }
+    });
+
+    console.log(`Created payment intent for order ${orderResult.orderId}: ${paymentIntent.id}`);
+
+    return {
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      orderId: orderResult.orderId
+    };
+  } catch (error) {
+    console.error("Error creating payment intent:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create payment intent"
+    };
+  }
 } 
