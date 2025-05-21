@@ -735,3 +735,165 @@ useEffect(() => {
 2. Include all dependencies the function uses in the useCallback dependency array
 3. For simple data fetching that doesn't depend on props/state, an empty array is appropriate
 4. This pattern reduces unnecessary API calls and renders
+
+## Order Management and Stripe Integration
+
+### 1. Cookie Access in Server Components
+
+**Challenge:** Accessing cookies directly in server components causing TypeScript errors with Next.js's cookies() API.
+
+**Lesson:** The `cookies()` API in Next.js 14+ returns a Promise, causing type compatibility issues in server components.
+
+**Solution:** Use a client-side cookie utility that doesn't rely on Next.js API:
+
+```typescript
+// In lib/cookies.ts (client component)
+'use client';
+
+export function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+export function setCookie(name: string, value: string, options = {}): void {
+  if (typeof document === 'undefined') return;
+  
+  // Set cookie implementation...
+  document.cookie = cookie;
+}
+```
+
+**Key Points:**
+1. Use the `'use client'` directive for cookie utilities
+2. Handle SSR safely by checking for `document` before accessing cookies
+3. Pass cookie data to server components instead of trying to read cookies in server components
+4. This approach provides clear separation between client and server concerns
+
+### 2. Order Creation Flow
+
+**Challenge:** Implementing a proper order creation and payment flow with Stripe.
+
+**Lesson:** Orders must be created in the database before initiating payment, and the order ID must be passed to Stripe.
+
+**Solution:** 
+1. Create server actions for order creation
+2. Create a separate function for initiating Stripe checkout
+3. Include the order ID in Stripe metadata
+4. Process webhooks to update order status
+
+```typescript
+// Order creation server action
+export async function createOrder(userId: string, orderData: OrderData): Promise<OrderResult> {
+  // Create order in database first
+  // Return the order ID
+}
+
+// Checkout session creation
+export async function createCheckoutSession(userId: string, cart: CartItem[], orderData: OrderData): Promise<CheckoutResult> {
+  // Create order first
+  const orderResult = await createOrder(userId, {...orderData, items: cart});
+  
+  // Then create Stripe checkout session with order ID in metadata
+  const session = await stripe.checkout.sessions.create({
+    metadata: {
+      orderId: orderResult.orderId,
+      // Other metadata
+    },
+    // Other session details
+  });
+  
+  return { success: true, url: session.url };
+}
+```
+
+**Key Points:**
+1. Always create the order in your database before initiating payment
+2. Include the order ID in the payment metadata
+3. Use webhooks to update the order status based on payment outcomes
+4. Keep the payment flow separate from the order creation logic
+
+### 3. Stripe Webhook Handling
+
+**Challenge:** Properly processing and verifying Stripe webhook events.
+
+**Lesson:** Webhook signature verification is critical for security but can be tricky to implement correctly.
+
+**Solution:**
+```typescript
+export async function POST(req: NextRequest) {
+  try {
+    // Get the raw request body and signature header
+    const body = await req.text();
+    const signature = req.headers.get('stripe-signature');
+    
+    // Verify the webhook signature
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+    
+    // Process different event types
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        // Update order status
+        break;
+      // Handle other events
+    }
+    
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    // Handle errors
+    return NextResponse.json(
+      { error: 'Webhook error' },
+      { status: 400 }
+    );
+  }
+}
+```
+
+**Key Points:**
+1. Always verify webhook signatures to prevent fraud
+2. Use the raw request body for signature verification
+3. Handle different event types with specific logic
+4. Return appropriate status codes for Stripe to know if it should retry
+
+### 4. Type Conversion for Prices
+
+**Challenge:** Handling price data types consistently between client, database, and Stripe.
+
+**Lesson:** Price data needs explicit type conversion to avoid errors when moving between systems.
+
+**Solution:**
+```typescript
+// When creating orders
+const order = await prisma.order.create({
+  data: {
+    total: Number(orderData.total),
+    items: {
+      create: orderData.items.map(item => ({
+        price: Number(item.price),
+        // Other item fields
+      }))
+    }
+  }
+});
+
+// When creating Stripe line items
+const lineItems = items.map(item => ({
+  price_data: {
+    currency: 'usd',
+    unit_amount: Math.round(Number(item.price) * 100), // Convert to cents
+    // Other price data
+  },
+  quantity: item.quantity
+}));
+```
+
+**Key Points:**
+1. Always use explicit Number() conversion for price values
+2. Remember to convert dollars to cents for Stripe (multiply by 100)
+3. Use Math.round() to avoid floating-point issues
+4. Be consistent with price handling throughout the codebase

@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from "@/lib/prisma"
-import { OrderStatus, PaymentStatus } from "@prisma/client"
+import { OrderStatus, PaymentStatus, OrderType } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
 export type OrderWithItems = {
@@ -34,7 +34,83 @@ export type OrderWithItems = {
 export type OrderActionResult = {
   success: boolean
   orders?: OrderWithItems[]
+  orderId?: string
   error?: string
+}
+
+/**
+ * Creates a new order in the database
+ * @param userId - The ID of the user placing the order
+ * @param orderData - The data for the new order
+ * @returns OrderActionResult containing the new order ID or error message
+ */
+export async function createOrder(
+  userId: string,
+  orderData: {
+    total: number
+    orderType: OrderType
+    orderNotes?: string | null
+    items: {
+      menuItemId: string
+      quantity: number
+      price: number
+      specialInstructions?: string | null
+    }[]
+  }
+): Promise<OrderActionResult> {
+  if (!userId) {
+    return {
+      success: false,
+      error: "User ID is required"
+    }
+  }
+
+  try {
+    // Generate a unique order number (e.g., ORD-12345)
+    const orderNumber = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // Create the order and order items in a transaction
+    const order = await prisma.order.create({
+      data: {
+        orderNumber,
+        total: Number(orderData.total),
+        status: OrderStatus.PENDING,
+        paymentStatus: PaymentStatus.PENDING,
+        orderType: orderData.orderType,
+        orderNotes: orderData.orderNotes,
+        userId: userId,
+        items: {
+          create: orderData.items.map(item => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            price: Number(item.price),
+            specialInstructions: item.specialInstructions
+          }))
+        },
+        statusUpdates: {
+          create: {
+            status: OrderStatus.PENDING,
+            note: "Order created, awaiting payment",
+            updatedById: userId
+          }
+        }
+      }
+    });
+
+    // Revalidate the orders page to reflect the latest data
+    revalidatePath('/orders')
+
+    return {
+      success: true,
+      orderId: order.id
+    }
+  } catch (error) {
+    console.error("Error creating order:", error)
+    return {
+      success: false,
+      error: "Failed to create order. Please try again later."
+    }
+  }
 }
 
 /**
