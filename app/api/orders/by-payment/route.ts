@@ -3,15 +3,29 @@ import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
+
+// Define the type for the order with items
+type OrderWithItems = {
+  id: string;
+  orderNumber: string | null;
+  total: number;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  estimatedPickupTime: Date | null;
+  items: {
+    quantity: number;
+    price: number;
+    menuItem: {
+      name: string;
+      image: string | null;
+      price: number;
+    }
+  }[];
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Get the payment intent ID from query params
     const searchParams = request.nextUrl.searchParams;
     const paymentIntentId = searchParams.get('paymentIntentId');
@@ -20,12 +34,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Payment intent ID is required' }, { status: 400 });
     }
 
+    // Check authentication (optional - will filter by user ID if authenticated)
+    const session = await getServerSession(authOptions);
+    
+    // Set up basic query parameters
+    const where: Prisma.OrderWhereInput = {
+      paymentIntentId
+    };
+    
+    // If user is authenticated, only show their orders
+    if (session?.user) {
+      where.userId = session.user.id;
+    }
+    
     // Find the order by payment intent ID
-    const order = await prisma.order.findFirst({
-      where: {
-        paymentIntentId,
-        userId: session.user.id
-      },
+    const orderQuery: Prisma.OrderFindFirstArgs = {
+      where,
       include: {
         items: {
           include: {
@@ -39,7 +63,9 @@ export async function GET(request: NextRequest) {
           }
         }
       }
-    });
+    };
+
+    const order = await prisma.order.findFirst(orderQuery) as unknown as OrderWithItems;
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });

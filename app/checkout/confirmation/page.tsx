@@ -27,7 +27,7 @@ export default function ConfirmationPage() {
     const [status, setStatus] = useState<'success' | 'processing' | 'error'>('processing');
     const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
     const [mounted, setMounted] = useState(false);
-    //const { data: session } = useSession();
+    // const { data: session } = useSession();
     const [isLoading, setIsLoading] = useState(true);
 
     // Check payment status from URL and fetch order details
