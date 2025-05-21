@@ -29,6 +29,28 @@ type CategoryCreateData = {
 
 type CategoryUpdateData = Partial<CategoryCreateData>;
 
+// Add these new types for API responses
+type MenuItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number | bigint;
+  image: string | null;
+  isAvailable: boolean;
+  menu: { id: string; name: string };
+};
+
+type Category = {
+  id: string;
+  name: string;
+  items: MenuItem[];
+};
+
+type MenuApiResponse = {
+  categories?: Category[];
+  error?: string;
+};
+
 // Helper function to make API requests
 // async function fetchApi(url: string, options?: RequestInit) {
 //   const response = await fetch(url, {
@@ -69,13 +91,31 @@ export async function getMenuItems({
     // Client-side data fetching
     const url = `/api/menu?${params.toString()}`;
     const response = await fetch(url);
-    const data = await response.json();
+    const data = await response.json() as MenuApiResponse;
 
     if (!response.ok) {
       return { error: data.error || 'Failed to fetch menu items' };
     }
 
-    return { menuItems: data };
+    // Flatten the categories structure into an array of menu items
+    let menuItems: (MenuItem & { category: { id: string; name: string } })[] = [];
+    if (data && data.categories && Array.isArray(data.categories)) {
+      data.categories.forEach((category: Category) => {
+        if (category.items && Array.isArray(category.items)) {
+          // Add category info to each item
+          const itemsWithCategory = category.items.map((item: MenuItem) => ({
+            ...item,
+            category: {
+              id: category.id,
+              name: category.name
+            }
+          }));
+          menuItems = [...menuItems, ...itemsWithCategory];
+        }
+      });
+    }
+
+    return { menuItems };
   } catch (error) {
     console.error("Error fetching menu items:", error);
     return { error: "Failed to fetch menu items" };

@@ -80,6 +80,10 @@ export default function MenuManagement() {
                 const mappedItems = mapMenuItems(menuItemsData.menuItems);
                 setMenuItems(mappedItems);
                 setFilteredItems(mappedItems);
+            } else {
+                setMenuItems([]);
+                setFilteredItems([]);
+                console.error("Menu items data structure issue:", menuItemsData);
             }
 
             if (categoriesData.categories) {
