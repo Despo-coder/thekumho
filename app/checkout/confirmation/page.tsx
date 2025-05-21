@@ -4,46 +4,91 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/lib/cart/CartContext';
 import Link from 'next/link';
-import { CheckCircle2, AlertCircle, Home, Utensils } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Home, Utensils, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+//import { useSession } from 'next-auth/react';
+// import { format } from 'date-fns';
+
+type OrderDetails = {
+    orderNumber: string;
+    id: string;
+    total: number;
+    pickupTime: string | null;
+    status: string;
+    items: Array<{
+        name: string;
+        quantity: number;
+    }>;
+};
 
 export default function ConfirmationPage() {
     const searchParams = useSearchParams();
     const { clearCart } = useCart();
     const [status, setStatus] = useState<'success' | 'processing' | 'error'>('processing');
-    const [orderNumber, setOrderNumber] = useState<string>('');
+    const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
     const [mounted, setMounted] = useState(false);
+    //const { data: session } = useSession();
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Check payment status from URL
+    // Check payment status from URL and fetch order details
     useEffect(() => {
         setMounted(true);
+        const fetchOrderDetails = async () => {
+            try {
+                setIsLoading(true);
+                // Get the payment intent ID from the URL
+                const paymentIntentId = searchParams.get('payment_intent');
+                const redirectStatus = searchParams.get('redirect_status');
 
-        // Get the payment intent client secret and status from the URL
-        const paymentIntentStatus = searchParams.get('redirect_status');
+                if (!paymentIntentId) {
+                    setStatus(redirectStatus === 'succeeded' ? 'success' : 'error');
+                    setIsLoading(false);
+                    return;
+                }
 
-        // Generate a random order number for demo purposes
-        // In a real app, this would come from your backend
-        setOrderNumber(`ORD-${Math.floor(100000 + Math.random() * 900000)}`);
+                // Fetch order details using the payment intent ID
+                const response = await fetch(`/api/orders/by-payment?paymentIntentId=${paymentIntentId}`);
 
-        if (paymentIntentStatus === 'succeeded') {
-            setStatus('success');
-            // Clear the cart after successful payment
-            clearCart();
-        } else if (paymentIntentStatus === 'processing') {
-            setStatus('processing');
-        } else {
-            setStatus('error');
-        }
+                if (!response.ok) {
+                    throw new Error('Failed to fetch order details');
+                }
+
+                const data = await response.json();
+
+                if (data.order) {
+                    setOrderDetails(data.order);
+                    setStatus('success');
+                    // Clear the cart after successful payment
+                    clearCart();
+                } else {
+                    setStatus('error');
+                }
+            } catch (error) {
+                console.error('Error fetching order details:', error);
+                setStatus('error');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchOrderDetails();
     }, [searchParams, clearCart]);
 
-    if (!mounted) {
-        return <div className="container mx-auto py-12 px-4">Loading...</div>;
+    if (!mounted || isLoading) {
+        return (
+            <div className="container mx-auto py-12 px-4 text-center">
+                <div className="inline-flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+                </div>
+                <p className="mt-4 text-gray-600">Loading your order details...</p>
+            </div>
+        );
     }
 
     return (
         <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-lg mx-auto">
-                {status === 'success' && (
+                {status === 'success' && orderDetails && (
                     <div className="text-center">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-6">
                             <CheckCircle2 className="h-8 w-8 text-green-600" />
@@ -55,17 +100,31 @@ export default function ConfirmationPage() {
                         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mb-6 text-left">
                             <div className="flex justify-between mb-4 pb-4 border-b border-gray-200">
                                 <span className="text-gray-600">Order Number:</span>
-                                <span className="font-medium">{orderNumber}</span>
+                                <span className="font-medium">{orderDetails.orderNumber}</span>
                             </div>
+                            {orderDetails.pickupTime && (
+                                <div className="flex justify-between mb-4 pb-4 border-b border-gray-200">
+                                    <span className="text-gray-600">Pickup Time:</span>
+                                    <span className="font-medium flex items-center">
+                                        <Clock className="h-4 w-4 mr-1" />
+                                        {orderDetails.pickupTime}
+                                    </span>
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <p className="text-gray-600">
-                                    A confirmation email has been sent to your email address.
+                                    One of our staff members will be with you shortly to confirm.
                                 </p>
                                 <p className="text-gray-600">
                                     Your order will be ready for pickup at your selected time.
                                 </p>
                             </div>
                         </div>
+                        <Link href={`/orders/${orderDetails.id}`}>
+                            <Button className="w-full mb-4">
+                                View Order Details
+                            </Button>
+                        </Link>
                     </div>
                 )}
 
