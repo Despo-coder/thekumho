@@ -208,8 +208,26 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
     if (metadata?.orderId) {
       // Update existing order
       try {
+        // Get the existing order to check if it has an order number
+        const existingOrder = await prisma.order.findUnique({
+          where: { id: metadata.orderId }
+        });
+        
+        if (!existingOrder) {
+          throw new Error(`Order ${metadata.orderId} not found`);
+        }
+        
+        // Generate order number if needed
+        let orderNumber = existingOrder.orderNumber;
+        if (!orderNumber) {
+          const timestamp = new Date().getTime().toString().slice(-6);
+          const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+          orderNumber = `ORD-${timestamp}-${randomChars}`;
+        }
+        
         // Prepare update data with only fields we know exist in schema
         const updateData = {
+          orderNumber,
           paymentStatus: PaymentStatus.PAID,
           paymentMethod: charge.payment_method_details?.type || 'stripe',
           statusUpdates: {
@@ -377,9 +395,15 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
       
       // Create the order with try/catch for schema compatibility
       try {
+        // Generate order number - current format: ORD-{timestamp}-{random chars}
+        const timestamp = new Date().getTime().toString().slice(-6);
+        const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const orderNumber = `ORD-${timestamp}-${randomChars}`;
+        
         // Prepare base order data
         const orderData = {
           userId: metadata.userId,
+          orderNumber,
           total,
           status: OrderStatus.CONFIRMED,
           paymentStatus: PaymentStatus.PAID,
