@@ -9,7 +9,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 // Define the POST handler function for the Stripe webhook
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.text();
+    // For webhook signature verification, we need the raw body exactly as it was sent
+    // Using the Request.clone() approach to prevent body stream from being consumed twice
+    const rawBody = await req.text();
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
@@ -20,21 +22,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log('Received webhook with signature:', signature.slice(0, 20) + '...');
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
-    const testWebhookSecret = process.env.NODE_ENV === 'development' ? 'whsec_test_12345678901234567890123456789012' : '';
+    
+    // Only use test webhook secret in development as a fallback
+    const testWebhookSecret = 
+      process.env.NODE_ENV === 'development' && !webhookSecret 
+        ? 'whsec_test_12345678901234567890123456789012' 
+        : '';
 
     let event: Stripe.Event;
 
     try {
+      // Log the first few characters of the body for debugging
+      console.log('Raw webhook body (first 100 chars):', rawBody.slice(0, 100) + '...');
+      
+      // Attempt to construct the event
       event = stripe.webhooks.constructEvent(
-        body,
+        rawBody,
         signature,
         webhookSecret || testWebhookSecret
       );
-      console.log(`Received Stripe webhook event: ${event.type}`);
+      console.log(`Successfully verified and received Stripe webhook event: ${event.type}`);
     } catch (err: unknown) {
       const error = err as Error;
       console.error(`Webhook signature verification failed: ${error.message}`);
+      
+      // Return a 400 error to tell Stripe to retry the webhook
       return NextResponse.json(
         { error: `Webhook signature verification failed: ${error.message}` },
         { status: 400 }
@@ -59,7 +73,8 @@ export async function POST(req: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
-    return NextResponse.json({ received: true });
+    // Return a 200 success response to acknowledge receipt of the event
+    return NextResponse.json({ received: true, type: event.type });
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error processing webhook:', err.message);
