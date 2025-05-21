@@ -6,6 +6,59 @@ import { OrderStatus, PaymentStatus, OrderType } from '@prisma/client';
 // Initialize Stripe with the secret API key from environment variables
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
+// Define a type for webhook handler results
+type WebhookResult = {
+  success?: boolean;
+  processed?: boolean;
+  error?: string;
+  order?: unknown;
+};
+
+// Define a type for order update data
+// type OrderUpdateData = {
+//   status?: OrderStatus;
+//   paymentStatus: PaymentStatus;
+//   paymentMethod: string;
+//   paymentIntentId?: string | null;
+//   chargeId?: string | null;
+//   statusUpdates: {
+//     create: {
+//       status: OrderStatus;
+//       note: string;
+//       updatedById: string;
+//     }
+//   }
+// };
+
+// Define a type for order creation data
+// type OrderCreateData = {
+//   userId: string;
+//   total: number;
+//   status: OrderStatus;
+//   paymentStatus: PaymentStatus;
+//   paymentMethod: string;
+//   paymentIntentId?: string | null;
+//   chargeId?: string | null;
+//   orderType: OrderType;
+//   orderNotes: string | null;
+//   estimatedPickupTime: Date | null;
+//   items: {
+//     create: Array<{
+//       menuItemId: string;
+//       quantity: number;
+//       price: unknown; // Using unknown since Decimal type is used
+//       specialInstructions: string | null;
+//     }>
+//   };
+//   statusUpdates: {
+//     create: {
+//       status: OrderStatus;
+//       note: string;
+//       updatedById: string;
+//     }
+//   }
+// };
+
 // Define the POST handler function for the Stripe webhook
 export async function POST(req: NextRequest) {
   try {
@@ -36,6 +89,7 @@ export async function POST(req: NextRequest) {
     try {
       // Log the first few characters of the body for debugging
       console.log('Raw webhook body (first 100 chars):', rawBody.slice(0, 100) + '...');
+      console.log('Using webhook secret:', webhookSecret ? 'Production' : testWebhookSecret ? 'Test' : 'None');
       
       // Attempt to construct the event
       event = stripe.webhooks.constructEvent(
@@ -47,6 +101,8 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       const error = err as Error;
       console.error(`Webhook signature verification failed: ${error.message}`);
+      console.error('Signature received:', signature);
+      console.error('Error stack:', error.stack);
       
       // Return a 400 error to tell Stripe to retry the webhook
       return NextResponse.json(
@@ -57,26 +113,63 @@ export async function POST(req: NextRequest) {
 
     // Handle the event based on its type
     try {
+      console.log(`Processing event ${event.id} of type ${event.type}`);
+      
+      let result: WebhookResult | unknown;
       switch (event.type) {
         case 'charge.succeeded':
-          await handleChargeSucceeded(event.data.object as Stripe.Charge);
+          result = await handleChargeSucceeded(event.data.object as Stripe.Charge);
+          console.log('Charge succeeded result:', JSON.stringify(result));
           break;
         case 'payment_intent.succeeded':
-          await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+          result = await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+          console.log('Payment intent succeeded result:', JSON.stringify(result));
           break;
         case 'payment_intent.payment_failed':
-          await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+          result = await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+          console.log('Payment intent failed result:', JSON.stringify(result));
           break;
         case 'checkout.session.completed':
-          await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+          result = await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+          console.log('Checkout session completed result:', JSON.stringify(result));
           break;
         default:
           console.log(`Unhandled event type: ${event.type}`);
+      }
+      
+      // Check if we got a result with error but processed flag
+      if (result && 
+          typeof result === 'object' && 
+          'processed' in result && 
+          'success' in result && 
+          !result.success) {
+        console.log(`Event ${event.id} processed with errors but acknowledged`);
+        return NextResponse.json(
+          { 
+            received: true, 
+            type: event.type, 
+            warning: 'error' in result ? result.error as string : "Event processed with errors" 
+          },
+          { status: 200 }
+        );
       }
     } catch (err: unknown) {
       const error = err as Error;
       console.error(`Error handling ${event.type} event:`, error);
       console.error("Error stack:", error.stack);
+      // Log detailed info about the event for debugging
+      console.error("Event details:", JSON.stringify({
+        id: event.id,
+        type: event.type,
+        created: event.created,
+        data: {
+          object: {
+            type: event.data.object.object,
+            summary: `${event.type} event`
+          }
+        }
+      }));
+      
       // Return 200 so Stripe doesn't retry - we've logged the error and can investigate
       return NextResponse.json(
         { received: true, type: event.type, warning: "Event processed with errors" },
@@ -85,13 +178,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Return a 200 success response to acknowledge receipt of the event
-    return NextResponse.json({ received: true, type: event.type });
+    console.log(`Successfully processed ${event.type} event ${event.id}`);
+    return NextResponse.json({ received: true, type: event.type, success: true });
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error processing webhook:', err.message);
     console.error('Error stack:', err.stack);
+    
+    // Log all request headers for debugging
+    console.error('Request headers:', JSON.stringify(Object.fromEntries(
+      [...req.headers.entries()].map(([key, value]) => [key, value])
+    )));
+    
     return NextResponse.json(
-      { error: 'Error processing webhook' },
+      { error: 'Error processing webhook', message: err.message },
       { status: 500 }
     );
   }
@@ -107,13 +207,11 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
     // Check if we have an orderId in metadata
     if (metadata?.orderId) {
       // Update existing order
-      const order = await prisma.order.update({
-        where: { id: metadata.orderId },
-        data: {
+      try {
+        // Prepare update data with only fields we know exist in schema
+        const updateData = {
           paymentStatus: PaymentStatus.PAID,
           paymentMethod: charge.payment_method_details?.type || 'stripe',
-          paymentIntentId: charge.payment_intent?.toString() || null,
-          chargeId: charge.id,
           statusUpdates: {
             create: {
               status: OrderStatus.CONFIRMED,
@@ -121,11 +219,38 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
               updatedById: metadata.userId || 'system'
             }
           }
+        };
+        
+        // Only add these fields if the database schema has been updated
+        try {
+          // Test if we can update with new fields
+          const order = await prisma.order.update({
+            where: { id: metadata.orderId },
+            data: {
+              ...updateData,
+              paymentIntentId: charge.payment_intent?.toString() || null,
+              chargeId: charge.id
+            }
+          });
+          
+          console.log(`Updated order ${order.id} payment status to PAID`);
+          return order;
+        } catch (schemaError) {
+          console.log('Schema might not be updated yet, using fallback update:', schemaError);
+          
+          // Fallback to basic update without new fields
+          const order = await prisma.order.update({
+            where: { id: metadata.orderId },
+            data: updateData
+          });
+          
+          console.log(`Updated order ${order.id} payment status to PAID (fallback method)`);
+          return order;
         }
-      });
-      
-      console.log(`Updated order ${order.id} payment status to PAID`);
-      return order;
+      } catch (updateError) {
+        console.error('Error updating existing order:', updateError);
+        throw updateError;
+      }
     } else {
       // Create a new order if it doesn't exist
       console.log('No orderId found in metadata, creating new order from charge data');
@@ -214,7 +339,8 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
             const timeParts = metadata.pickupTime.match(/(\d+):(\d+)\s*(a\.m\.|p\.m\.|am|pm)/i);
             
             if (timeParts) {
-              let [_, hours, minutes, period] = timeParts;
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const [matchStr, hours, minutes, period] = timeParts;
               let hour = parseInt(hours, 10);
               
               // Convert to 24-hour format
@@ -249,16 +375,15 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
         pickupTime: pickupTime ? pickupTime.toISOString() : null
       });
       
-      // Create the order
-      const order = await prisma.order.create({
-        data: {
+      // Create the order with try/catch for schema compatibility
+      try {
+        // Prepare base order data
+        const orderData = {
           userId: metadata.userId,
           total,
           status: OrderStatus.CONFIRMED,
           paymentStatus: PaymentStatus.PAID,
           paymentMethod: charge.payment_method_details?.type || 'stripe',
-          paymentIntentId: charge.payment_intent?.toString() || null,
-          chargeId: charge.id,
           orderType,
           orderNotes: metadata.orderNotes || null,
           estimatedPickupTime: pickupTime,
@@ -272,15 +397,44 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
               updatedById: metadata.userId
             }
           }
+        };
+        
+        // Try to create with payment fields
+        try {
+          const order = await prisma.order.create({
+            data: {
+              ...orderData,
+              paymentIntentId: charge.payment_intent?.toString() || null,
+              chargeId: charge.id
+            }
+          });
+          
+          console.log(`Created new order ${order.id} from charge ${charge.id}`);
+          return order;
+        } catch (schemaError) {
+          console.log('Schema might not include payment fields, using fallback:', schemaError);
+          
+          // Fallback without payment fields
+          const order = await prisma.order.create({
+            data: orderData
+          });
+          
+          console.log(`Created new order ${order.id} from charge ${charge.id} (fallback method)`);
+          return order;
         }
-      });
-      
-      console.log(`Created new order ${order.id} from charge ${charge.id}`);
-      return order;
+      } catch (createError) {
+        console.error('Error creating order:', createError);
+        throw createError;
+      }
     }
   } catch (error) {
     console.error('Error processing charge.succeeded event:', error);
-    throw error;
+    // Instead of throwing, return a partial success so Stripe doesn't retry
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      processed: true // Indicate we handled it even with error
+    };
   }
 }
 
@@ -368,7 +522,7 @@ async function updateOrderPaymentStatus(
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       paymentStatus,
       status: orderStatus,
       statusUpdates: {
