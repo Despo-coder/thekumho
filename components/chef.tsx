@@ -6,7 +6,7 @@ import Link from "next/link"
 
 export function ChefSpotlight() {
     return (
-        <section className="w-full bg-white py-24 md:py-32">
+        <section className="w-full bg-white py-4 md:py-12">
             <div className="container max-w-6xl px-6 mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                 {/* Image */}
                 <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xl">

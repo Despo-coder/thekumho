@@ -40,7 +40,8 @@ export async function GET(req: Request) {
             menuItem: {
               select: {
                 name: true,
-                image: true
+                image: true,
+                price: true
               }
             }
           }
@@ -51,7 +52,21 @@ export async function GET(req: Request) {
       }
     });
     
-    return NextResponse.json({ orders });
+    // Convert Decimal values to numbers before sending to client
+    const serializedOrders = orders.map(order => ({
+      ...order,
+      total: Number(order.total),
+      items: order.items.map(item => ({
+        ...item,
+        price: Number(item.price),
+        menuItem: {
+          ...item.menuItem,
+          price: item.menuItem.price ? Number(item.menuItem.price) : undefined
+        }
+      }))
+    }));
+    
+    return NextResponse.json({ orders: serializedOrders });
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json(

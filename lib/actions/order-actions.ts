@@ -166,7 +166,25 @@ export async function getOrderById(orderId: string) {
       }
     })
     
-    return { order }
+    if (!order) {
+      return { error: 'Order not found' }
+    }
+    
+    // Convert Decimal values to numbers before sending to client
+    const serializedOrder = {
+      ...order,
+      total: Number(order.total),
+      items: order.items.map(item => ({
+        ...item,
+        price: Number(item.price),
+        menuItem: {
+          ...item.menuItem,
+          price: Number(item.menuItem.price)
+        }
+      }))
+    }
+    
+    return { order: serializedOrder }
   } catch (error) {
     console.error('Error fetching order:', error)
     return { error: 'Failed to fetch order' }
@@ -194,7 +212,21 @@ export async function getUserOrders(userId: string) {
       orderBy: { createdAt: 'desc' }
     })
     
-    return { orders }
+    // Convert Decimal values to numbers before sending to client
+    const serializedOrders = orders.map(order => ({
+      ...order,
+      total: Number(order.total),
+      items: order.items.map(item => ({
+        ...item,
+        price: Number(item.price),
+        menuItem: {
+          ...item.menuItem,
+          price: Number(item.menuItem.price)
+        }
+      }))
+    }))
+    
+    return { orders: serializedOrders }
   } catch (error) {
     console.error('Error fetching user orders:', error)
     return { error: 'Failed to fetch orders' }

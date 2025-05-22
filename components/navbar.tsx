@@ -73,6 +73,9 @@ export function Navbar() {
         <header className="sticky top-0 z-50 w-full bg-white border-b shadow-sm">
             <div className="container mx-auto max-w-7xl flex h-16 items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
+                    <svg className="size-8 text-[#e96629]" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z" fill="currentColor"></path>
+                    </svg>
                     <h6 className="text-2xl font-kaiseiOpti font-semibold text-orange-500">THE KUMO</h6>
                 </Link>
 

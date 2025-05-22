@@ -6,6 +6,7 @@ import { HowItWorks } from "@/components/how-it-works";
 import { FaqSection } from "@/components/faq";
 import { ChefSpotlight } from "@/components/chef";
 import Subcribe from "@/components/subcribe";
+import Takeout from "@/components/takeout";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
         <ChefSpotlight />
         <Testimonials />
         <HowItWorks />
+        <Takeout />
         <Subcribe />
         <FaqSection />
       </div>
