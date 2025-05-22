@@ -82,7 +82,7 @@ export async function Meals() {
 
     return (
         <>
-            <section className="py-16 md:py-24 bg-white" id="menu">
+            <section className="py-16 md:py-24 bg-zinc-100" id="menu">
                 <div className="container mx-auto px-6 md:px-10 text-center">
                     <h3 className="text-3xl md:text-4xl font-bold text-[#1C1C1C] mb-4">Discover Our Culinary Delights</h3>
                     <p className="text-lg text-gray-700 max-w-2xl mx-auto mb-12">

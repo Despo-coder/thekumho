@@ -1,6 +1,6 @@
 import Image from "next/image"
 import { Quote } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+// import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 
 
@@ -21,9 +21,9 @@ export function ChefSpotlight() {
 
                 {/* Text Content */}
                 <div className="space-y-6">
-                    <Badge className="bg-orange-100 text-orange-700 text-sm px-3 py-1 rounded-full">
+                    {/* <Badge className="bg-orange-100 text-orange-700 text-sm px-3 py-1 rounded-full">
                         MEET THE CHEF
-                    </Badge>
+                    </Badge> */}
 
                     <h2 className="text-4xl font-bold text-gray-900 leading-tight">
                         Crafted With Passion by Chef Takumi Sato

@@ -50,12 +50,13 @@ export default function Testimonials({ initialReviews }: { initialReviews: Revie
     }, [instanceRef]);
 
     return (
-        <section className="py-16 bg-gradient-to-b from-white to-orange-50">
+        // <section className="py-16 bg-gradient-to-b from-white to-orange-50">
+        <section className="py-16 bg-zinc-100">
             <div className="container mx-auto px-4 max-w-5xl">
                 <div className="text-center space-y-3 mb-10">
-                    <span className="text-sm font-medium text-orange-500 bg-orange-100 px-3 py-1 rounded-full">
+                    {/* <span className="text-sm font-medium text-orange-500 bg-orange-100 px-3 py-1 rounded-full">
                         CUSTOMER REVIEWS
-                    </span>
+                    </span> */}
                     <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">
                         What Our Customers Say
                     </h2>

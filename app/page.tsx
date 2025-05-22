@@ -6,7 +6,7 @@ import { HowItWorks } from "@/components/how-it-works";
 import { FaqSection } from "@/components/faq";
 import { ChefSpotlight } from "@/components/chef";
 import Subcribe from "@/components/subcribe";
-import Takeout from "@/components/takeout";
+// import Takeout from "@/components/takeout";
 import { getVerifiedTestimonials } from "@/lib/actions/review-actions";
 
 export default async function Home() {
@@ -22,7 +22,7 @@ export default async function Home() {
         <ChefSpotlight />
         <Testimonials initialReviews={initialReviews} />
         <HowItWorks />
-        <Takeout />
+        {/* <Takeout /> */}
         <Subcribe />
         <FaqSection />
       </div>

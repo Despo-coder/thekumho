@@ -6,9 +6,9 @@ export function HowItWorks() {
             <div className="container mx-auto max-w-7xl px-4 md:px-6">
                 <div className="flex flex-col items-center justify-center space-y-4 text-center">
                     <div className="space-y-2">
-                        <div className="inline-block rounded-lg bg-orange-100 px-3 py-1 text-sm text-orange-600 font-medium">
+                        {/* <div className="inline-block rounded-lg bg-orange-100 px-3 py-1 text-sm text-orange-600 font-medium">
                             HOW IT WORKS
-                        </div>
+                        </div> */}
                         <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-6">
                             From Reservation to First Bite — Simple, Elegant, Seamless
                         </h2>
@@ -18,7 +18,7 @@ export function HowItWorks() {
                 {/* Step 1: Reserve */}
                 <div className="mt-16 grid gap-10 lg:grid-cols-2 items-center">
                     <div className="space-y-4 order-1 lg:order-1">
-                        <div className="text-7xl font-bold text-gray-200 ">01</div>
+                        <div className="text-5xl font-bold text-gray-200 ">01</div>
                         <h3 className="text-2xl font-bold text-gray-900">Reserve Your Table</h3>
                         <p className="text-gray-600 md:text-lg">
                             Choose your preferred date, time, and party size. Our seamless reservation system ensures you get the perfect table, whether it&apos;s an intimate dinner or a celebration.
@@ -41,8 +41,15 @@ export function HowItWorks() {
                 </div>
 
                 {/* Step 2: Experience */}
-                <div className="mt-16 grid gap-10 lg:grid-cols-2 items-center">
-                    <div className="flex justify-center">
+                <div className="mt-8 flex flex-col-reverse lg:grid lg:grid-cols-2 lg:items-center">
+                    <div className="space-y-4 order-1 md:order-2 lg:order-2">
+                        <div className="text-5xl font-bold text-gray-200">02</div>
+                        <h3 className="text-2xl font-bold text-gray-900">Arrive & Immerse Yourself</h3>
+                        <p className="text-gray-600 md:text-lg">
+                            Step into a refined atmosphere curated for comfort and discovery. Let our staff guide your experience while our chefs begin crafting your meal with the freshest seasonal ingredients.
+                        </p>
+                    </div>
+                    <div className="mt-4 flex justify-center odrer-2 md:order-1 lg:order-1">
                         <div className="relative h-[400px] w-[250px]">
                             <Image
                                 src="/images/geraldine-lewa-axgXb6_Tz3I-unsplash.jpg"
@@ -53,19 +60,11 @@ export function HowItWorks() {
                             />
                         </div>
                     </div>
-                    <div className="space-y-4">
-                        <div className="text-7xl font-bold text-gray-200">02</div>
-                        <h3 className="text-2xl font-bold text-gray-900">Arrive & Immerse Yourself</h3>
-                        <p className="text-gray-600 md:text-lg">
-                            Step into a refined atmosphere curated for comfort and discovery. Let our staff guide your experience while our chefs begin crafting your meal with the freshest seasonal ingredients.
-                        </p>
-                    </div>
                 </div>
-
                 {/* Step 3: Enjoy */}
                 <div className="mt-16 grid gap-10 lg:grid-cols-2 items-center">
                     <div className="space-y-4  order-1 md:order-2 lg:order-1">
-                        <div className="text-7xl font-bold text-gray-200">03</div>
+                        <div className="text-5xl font-bold text-gray-200">03</div>
                         <h3 className="text-2xl font-bold text-gray-900">Savor Every Detail</h3>
                         <p className="text-gray-600  md:text-lg">
                             From your first bite to the last sip, every dish is served with intention. Taste the balance of flavors, enjoy the artistry, and let the evening leave a lasting impression.
