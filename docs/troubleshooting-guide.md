@@ -646,4 +646,9 @@ The webhook handler now looks for the following metadata:
 - `userId` - Required to associate the order with a user
 - `items` - JSON string with menu item IDs and quantities
 - `orderType` - PICKUP or DELIVERY
-- `pickupTime` - (Optional) When the order should be ready 
+- `pickupTime` - (Optional) When the order should be ready
+
+**Updates:**
+- Fixed order number generation in webhook-created orders
+- Now generates order numbers in format: `ORD-{timestamp}-{randomChars}`
+- Updates existing orders with missing order numbers 

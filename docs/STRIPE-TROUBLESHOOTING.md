@@ -152,6 +152,57 @@ Check your browser console for:
 2. Check Stripe Dashboard for declined payment details
 3. Verify your account can process payments in test mode
 
+### Webhook Processing Issues
+
+**Possible causes**:
+- Invalid webhook signature
+- Missing order data in payment metadata
+- Database schema mismatches
+
+**Solutions**:
+1. Check server logs for detailed webhook processing errors
+2. Ensure the webhook secret is correctly set
+3. Verify metadata is properly included in payment requests
+4. Use the Schema Migration tool to keep database synchronized
+
+### Missing Order Numbers
+
+**Possible causes**:
+- Orders created before order number generation was implemented
+- Webhook handler failing to generate order numbers
+- Database update errors
+
+**Solutions**:
+1. Implement a migration script to generate order numbers for existing orders
+2. Ensure the webhook handler has adequate error handling
+3. Implement fallbacks for order number generation:
+```typescript
+// Ensure order number is present
+if (!order.orderNumber) {
+  const timestamp = new Date().getTime().toString().slice(-6);
+  const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const orderNumber = `ORD-${timestamp}-${randomChars}`;
+  
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { orderNumber }
+  });
+}
+```
+
+### Confirmation Page Not Showing Order Details
+
+**Possible causes**:
+- Missing payment intent ID in return URL
+- Authentication issues accessing order API
+- Order not yet created when confirmation page loads
+
+**Solutions**:
+1. Check browser console for API request errors
+2. Ensure authentication is maintained across the payment process
+3. Add fallback UI for cases where order details can't be retrieved
+4. Implement polling to check for order creation completion
+
 ## Getting Help
 
 If you continue experiencing issues:

@@ -1,14 +1,17 @@
 import { Meals } from "@/components/meals";
 import { Hero } from "@/components/hero";
-import { Testimonials } from "@/components/testimonials";
+import Testimonials from "@/components/review-testimonials";
 import { HowItWorks } from "@/components/how-it-works";
 
 import { FaqSection } from "@/components/faq";
 import { ChefSpotlight } from "@/components/chef";
 import Subcribe from "@/components/subcribe";
 import Takeout from "@/components/takeout";
+import { getVerifiedTestimonials } from "@/lib/actions/review-actions";
 
-export default function Home() {
+export default async function Home() {
+
+  const initialReviews = await getVerifiedTestimonials();
   return (
 
     <>
@@ -17,7 +20,7 @@ export default function Home() {
         <Hero />
         <Meals />
         <ChefSpotlight />
-        <Testimonials />
+        <Testimonials initialReviews={initialReviews} />
         <HowItWorks />
         <Takeout />
         <Subcribe />

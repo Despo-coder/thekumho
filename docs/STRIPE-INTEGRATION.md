@@ -33,9 +33,32 @@ Here's the complete flow for an order from creation to payment processing:
 4. **Order Status Update**
    - Our webhook handler processes the event
    - If payment is successful, updates the order status to "CONFIRMED"
+   - Order number is generated in format: `ORD-{timestamp}-{randomChars}`
    - If payment fails, updates the order status to "FAILED"
 
-The key to this flow is that the order must be created in the database **before** the payment process starts, and the order ID must be included in the payment metadata.
+5. **Confirmation Page**
+   - User is redirected to the confirmation page
+   - Page fetches order details from `/api/orders/by-payment` using payment intent ID
+   - Displays order number, pickup time, and other details
+   - Provides a link to view complete order details
+
+The key to this flow is that the order must be created in the database **before** the payment process starts, and the order ID must be included in the payment metadata. For webhooks that create orders directly from payment data, an order number is automatically generated.
+
+## Order Number Generation
+
+Order numbers are automatically generated in the following format:
+```javascript
+// Generate order number format: ORD-{timestamp}-{randomChars}
+const timestamp = new Date().getTime().toString().slice(-6);
+const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+const orderNumber = `ORD-${timestamp}-${randomChars}`;
+```
+
+This ensures:
+- Human-readable format with "ORD" prefix
+- Timestamp component for chronological ordering
+- Random characters to prevent collisions
+- Readable by customer service for order lookups
 
 ## Environment Variables
 

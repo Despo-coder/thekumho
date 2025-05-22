@@ -102,6 +102,46 @@ The authentication system uses NextAuth.js, which provides the following endpoin
   - 401: Unauthorized
   - 500: Server error
 
+### Get Order By ID
+- **URL**: `/api/orders/{id}`
+- **Method**: `GET`
+- **Auth Required**: Yes
+- **Description**: Retrieves an order by its ID
+- **Response**: Order details including items, status, and payment information
+
+### Get Order By Payment Intent
+- **URL**: `/api/orders/by-payment`
+- **Method**: `GET`
+- **Auth Required**: Yes
+- **Query Parameters**:
+  - `paymentIntentId` (required): The Stripe Payment Intent ID
+- **Description**: Retrieves an order by its associated Stripe payment intent ID
+- **Response**: 
+  ```json
+  {
+    "success": true,
+    "order": {
+      "id": "order_id",
+      "orderNumber": "ORD-123456-ABCD",
+      "total": 24.99,
+      "status": "CONFIRMED",
+      "pickupTime": "4:30 PM, May 21, 2025",
+      "items": [
+        {
+          "name": "Item Name",
+          "quantity": 2,
+          "price": 9.99,
+          "image": "image_url"
+        }
+      ]
+    }
+  }
+  ```
+- **Errors**:
+  - `401 Unauthorized`: If user is not authenticated
+  - `400 Bad Request`: If payment intent ID is missing
+  - `404 Not Found`: If no order is found for the payment intent ID
+
 ## Menu Endpoints
 
 ### `GET /api/menu`

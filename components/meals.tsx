@@ -37,9 +37,9 @@ async function getTopRatedItems() {
     });
 
     // Log items with their ratings for debugging
-    itemsWithRating.forEach(item => {
-        console.log(`Item: ${item.name}, Rating: ${item.avgRating.toFixed(1)}, Reviews: ${item.reviewCount}, ID: ${item.id}`);
-    });
+    // itemsWithRating.forEach(item => {
+    //     console.log(`Item: ${item.name}, Rating: ${item.avgRating.toFixed(1)}, Reviews: ${item.reviewCount}, ID: ${item.id}`);
+    // });
 
     // Sort by average rating (descending), then by review count (descending) as tiebreaker
     itemsWithRating.sort((a, b) => {
