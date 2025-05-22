@@ -216,6 +216,104 @@ The authentication system uses NextAuth.js, which provides the following endpoin
   - 404: Item not found
   - 500: Server error
 
+## Promotion Endpoints
+
+### `GET /api/promotions`
+- Fetches all promotions
+- Query Parameters:
+  - `active` (optional): Filter active promotions only (boolean)
+  - `current` (optional): Filter promotions valid for current date (boolean)
+  - `couponCode` (optional): Find promotion by coupon code
+- Authentication: Not required for public promotions, Admin for all
+- Returns: Array of promotion objects
+- Status codes:
+  - 200: Success
+  - 500: Server error
+
+### `GET /api/promotions/:id`
+- Fetches a specific promotion by ID
+- URL Parameters:
+  - `id`: Promotion ID
+- Authentication: Admin only
+- Returns: Promotion object with related items and categories
+- Status codes:
+  - 200: Success
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Promotion not found
+  - 500: Server error
+
+### `POST /api/promotions` (Admin only)
+- Creates a new promotion
+- Parameters:
+  - `name`: Promotion name
+  - `description` (optional): Promotion description
+  - `promotionType`: Type of promotion (PERCENTAGE_DISCOUNT, FIXED_AMOUNT_DISCOUNT, FREE_ITEM, BUY_ONE_GET_ONE)
+  - `value`: Percentage or amount value
+  - `minimumOrderValue` (optional): Minimum order value for eligibility
+  - `startDate`: Start date for the promotion
+  - `endDate`: End date for the promotion
+  - `isActive`: Activation status
+  - `freeItemId` (optional): ID of free item for FREE_ITEM promotions
+  - `couponCode` (optional): Coupon code to apply promotion
+  - `usageLimit` (optional): Maximum usage limit
+  - `applyToAllItems`: Whether to apply to all items
+  - `menuItemIds` (optional): Array of menu item IDs
+  - `categoryIds` (optional): Array of category IDs
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Created promotion
+- Status codes:
+  - 201: Promotion created successfully
+  - 400: Invalid input
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 500: Server error
+
+### `PUT /api/promotions/:id` (Admin only)
+- Updates an existing promotion
+- URL Parameters:
+  - `id`: Promotion ID
+- Body Parameters: Same as POST endpoint
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Updated promotion
+- Status codes:
+  - 200: Promotion updated successfully
+  - 400: Invalid input
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Promotion not found
+  - 500: Server error
+
+### `DELETE /api/promotions/:id` (Admin only)
+- Deletes a promotion
+- URL Parameters:
+  - `id`: Promotion ID
+- Authentication: Required
+- Authorization: Admin only
+- Returns: Success message
+- Status codes:
+  - 200: Promotion deleted successfully
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Promotion not found
+  - 500: Server error
+
+### `POST /api/promotions/validate`
+- Validates a coupon code and calculates discount
+- Parameters:
+  - `code`: Coupon code to validate
+  - `cartItems`: Array of cart items with menuItemId, quantity, and price
+  - `cartTotal`: Total cart amount
+- Authentication: Not required
+- Returns: Promotion details and calculated discount
+- Status codes:
+  - 200: Valid promotion with discount details
+  - 400: Invalid or expired coupon code
+  - 404: Coupon code not found
+  - 500: Server error
+
 ## Category Endpoints
 
 ### `GET /api/categories`

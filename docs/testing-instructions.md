@@ -181,6 +181,32 @@ curl -X POST http://localhost:3000/api/orders \
 curl -X GET http://localhost:3000/api/orders -b cookies.txt
 ```
 
+### Promotions API
+```bash
+# Get all promotions (admin only)
+curl -X GET http://localhost:3000/api/promotions -b cookies.txt
+
+# Get active promotions
+curl -X GET "http://localhost:3000/api/promotions?active=true" -b cookies.txt
+
+# Validate a coupon code
+curl -X POST http://localhost:3000/api/promotions/validate \
+  -H "Content-Type: application/json" \
+  -d '{"code":"WELCOME10","cartItems":[{"menuItemId":"item-id-1","quantity":2,"price":10.99}],"cartTotal":21.98}'
+
+# Create a new promotion (admin only)
+curl -X POST http://localhost:3000/api/promotions \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name":"New Customer Discount","description":"$10 off your first order","promotionType":"FIXED_AMOUNT_DISCOUNT","value":10,"minimumOrderValue":30,"startDate":"2023-01-01T00:00:00Z","endDate":"2023-12-31T23:59:59Z","isActive":true,"couponCode":"WELCOME10","applyToAllItems":true}'
+
+# Apply a promotion to an order
+curl -X POST http://localhost:3000/api/promotions/apply \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"promotionId":"promotion-id","orderId":"order-id"}'
+```
+
 ## Cross-Browser Testing
 
 Test the application in multiple browsers to ensure compatibility:
@@ -317,6 +343,67 @@ When you find an issue:
 2. Verify filter buttons appear for all dietary options
 3. Test each filter individually
 4. Test combinations of filters
+
+### Promotions and Discount System
+1. **Admin Promotion Creation**:
+   - Login as admin
+   - Navigate to Menu Management → Promotions tab
+   - Create different types of promotions:
+     - Percentage discount (e.g., 20% off)
+     - Fixed amount discount (e.g., $5 off)
+     - Free item promotion
+     - Buy one get one (BOGO)
+   - Test with and without coupon codes
+   - Set different date ranges (active, future, expired)
+   - Test minimum order requirements
+
+2. **Coupon Validation Testing**:
+   - Add items to cart
+   - Try invalid coupon codes (verify error messages)
+   - Try expired coupon codes
+   - Try coupon with minimum order requirement:
+     - Below threshold (should fail)
+     - Above threshold (should apply)
+   - Try a coupon that has reached its usage limit
+
+3. **Discount Application Testing**:
+   - Apply percentage discount and verify correct amount is discounted
+   - Apply fixed amount discount and verify exact amount is removed
+   - Test BOGO promotions with different combinations of items
+   - Test free item promotions
+
+4. **Checkout and Payment Testing**:
+   - Apply a valid coupon at checkout
+   - Complete payment using test card (4242 4242 4242 4242)
+   - Verify the discount appears correctly on:
+     - Order confirmation page
+     - Order details in user account
+     - Admin order view
+
+5. **Stripe Webhook Testing**:
+   - Apply discount and complete checkout
+   - Use Stripe CLI to verify webhook events are received:
+     ```bash
+     stripe listen --forward-to localhost:3000/api/webhook/stripe
+     ```
+   - Verify sales record is created with the correct discount amount
+   - Check that the sales record notes mention the discount
+
+6. **API Testing for Promotions**:
+   ```bash
+   # Get all promotions (admin only)
+   curl -X GET http://localhost:3000/api/promotions -b cookies.txt
+   
+   # Validate a coupon code
+   curl -X POST http://localhost:3000/api/promotions/validate \
+     -H "Content-Type: application/json" \
+     -d '{"code":"WELCOME10","cartItems":[{"menuItemId":"item-id-1","quantity":2,"price":10.99}],"cartTotal":21.98}'
+   ```
+
+7. **Promotion Usage Tracking**:
+   - Apply a coupon with usage limit
+   - Verify usage count increases in admin dashboard
+   - Try to use the same coupon multiple times until limit is reached
 
 ### Table Reservation Logic
 1. Book a large table (8+ people)

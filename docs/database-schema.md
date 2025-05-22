@@ -23,7 +23,7 @@ Below is a simplified representation of the database relationships:
 │ Booking │     │OrderStat│     │ Review  │     │Category │
 ├─────────┤     ├─────────┤     ├─────────┤     ├─────────┤
 │ id      │     │ id      │     │ id      │     │ id      │
-│ tableId │     │ status  │     │ rating  │     │ name    │
+│ tableId │     │ status  │     │ rating  │     │ content │
 │ userId  │─────│ orderId │     │ content │     │description
 └─────────┘     └─────────┘     └─────────┘     └─────────┘
      │*              │*                              │1
@@ -37,13 +37,21 @@ Below is a simplified representation of the database relationships:
 │ location│     │ orderId │                     │ isActive│
 └─────────┘     └─────────┘                     └─────────┘
                      │1
-┌─────────┐          │
-│ Waitlist│          │
-├─────────┤          │
-│ id      │          │
-│ status  │──────────┘
-│ userId  │
-└─────────┘
+┌─────────┐          │          ┌─────────┐
+│ Waitlist│          │          │Promotion│
+├─────────┤          │          ├─────────┤
+│ id      │          │          │ id      │
+│ status  │──────────┘          │ name    │
+│ userId  │                     │ type    │
+└─────────┘                     └─────────┘
+                                     │*
+                                     │
+                                     │*
+                                 ┌───┴───┐
+                                 │MenuItem│
+                                 │Category│
+                                 │ Order  │
+                                 └───────┘
 ```
 
 ## Tables
@@ -247,14 +255,14 @@ Tracks financial transactions and sales records.
 | subtotal | Decimal | Sale subtotal before tax |
 | tax | Decimal | Tax amount |
 | tip | Decimal? | Tip amount if applicable |
-| discount | Decimal? | Discount amount if applicable |
-| total | Decimal | Total sale amount |
+| discount | Decimal? | Discount amount applied from promotions/coupons |
+| total | Decimal | Total sale amount (subtotal + tax - discount + tip) |
 | paymentMethod | String | Payment method (Credit, Cash, etc.) |
 | paymentStatus | PaymentStatus (enum) | Payment status |
 | orderId | String? | References Order if associated |
 | serverId | String? | References User (waiter) |
 | processedById | String | References User who processed |
-| notes | String? | Additional notes |
+| notes | String? | Additional notes, including promotion details |
 | createdAt | DateTime | Creation timestamp |
 | updatedAt | DateTime | Last update timestamp |
 
@@ -276,6 +284,29 @@ Manages customers waiting when reservations are unavailable.
 | notificationSent | Boolean | If notification was sent |
 | userId | String? | References User if registered |
 | notes | String? | Additional notes |
+| createdAt | DateTime | Creation timestamp |
+| updatedAt | DateTime | Last update timestamp |
+
+### Promotion
+
+Manages special offers, discounts, and coupon codes.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String (cuid) | Primary key |
+| name | String | Promotion name |
+| description | String? | Promotion description |
+| promotionType | PromotionType (enum) | Type of promotion |
+| value | Decimal | Percentage or fixed amount |
+| minimumOrderValue | Decimal? | Minimum purchase requirement |
+| startDate | DateTime | Start date for the promotion |
+| endDate | DateTime | End date for the promotion |
+| isActive | Boolean | Whether promotion is active |
+| freeItemId | String? | References MenuItem for free item promotions |
+| couponCode | String? | Optional coupon code to apply promotion |
+| usageLimit | Int? | Maximum number of uses |
+| usageCount | Int | Current number of uses |
+| applyToAllItems | Boolean | Whether to apply to all items |
 | createdAt | DateTime | Creation timestamp |
 | updatedAt | DateTime | Last update timestamp |
 
@@ -320,4 +351,10 @@ Manages customers waiting when reservations are unavailable.
 - NOTIFIED: Customer has been notified of availability
 - SEATED: Customer has been seated
 - CANCELLED: Customer cancelled request
-- NO_SHOW: Customer did not show up 
+- NO_SHOW: Customer did not show up
+
+### PromotionType
+- PERCENTAGE_DISCOUNT: Percentage off the total price
+- FIXED_AMOUNT_DISCOUNT: Fixed amount off the total price
+- FREE_ITEM: Free item with qualifying purchase
+- BUY_ONE_GET_ONE: Buy one item, get one free 

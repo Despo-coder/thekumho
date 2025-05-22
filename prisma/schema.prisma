@@ -50,12 +50,13 @@ model Menu {
 }
 
 model Category {
-  id          String     @id @default(cuid())
-  name        String     @unique
+  id          String      @id @default(cuid())
+  name        String      @unique
   description String?
   items       MenuItem[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  promotions  Promotion[] @relation("CategoryPromotions")
 }
 
 model MenuItem {
@@ -79,10 +80,12 @@ model MenuItem {
   menu          Menu         @relation(fields: [menuId], references: [id])
   categoryId    String
   category      Category     @relation(fields: [categoryId], references: [id])
+  promotions    Promotion[]  @relation("MenuItemPromotions")
   reviews       Review[]
   orderItems    OrderItem[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  Promotion     Promotion[]
 
   @@index([menuId])
   @@index([categoryId])
@@ -114,14 +117,16 @@ model Order {
   completedTime       DateTime?
 
   // Customer information
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  items         OrderItem[]
-  statusUpdates OrderStatusUpdate[]
-  sales         Sale[]
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  userId             String
+  user               User                @relation(fields: [userId], references: [id])
+  appliedPromotionId String?
+  appliedPromotion   Promotion?          @relation(fields: [appliedPromotionId], references: [id])
+  discountAmount     Decimal             @default(0)
+  items              OrderItem[]
+  statusUpdates      OrderStatusUpdate[]
+  sales              Sale[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([userId])
 }
@@ -268,6 +273,48 @@ model User {
 
   statusUpdates OrderStatusUpdate[]
   notifications Notification[]
+}
+
+// Add this enum to your schema.prisma
+enum PromotionType {
+  PERCENTAGE_DISCOUNT
+  FIXED_AMOUNT_DISCOUNT
+  FREE_ITEM
+  BUY_ONE_GET_ONE
+}
+
+// Add this model to your schema.prisma
+model Promotion {
+  id                String        @id @default(cuid())
+  name              String
+  description       String?
+  promotionType     PromotionType
+  value             Decimal // Percentage or fixed amount
+  minimumOrderValue Decimal? // For minimum purchase requirements
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean       @default(true)
+
+  // For FREE_ITEM promotions
+  freeItemId String?
+  freeItem   MenuItem? @relation(fields: [freeItemId], references: [id])
+
+  // For coupon codes
+  couponCode String? @unique
+  usageLimit Int? // Max number of uses
+  usageCount Int     @default(0)
+
+  // For specific menu items or categories
+  applyToAllItems Boolean    @default(false)
+  menuItems       MenuItem[] @relation("MenuItemPromotions")
+  categories      Category[] @relation("CategoryPromotions")
+
+  // For tracking
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  appliedOrders Order[]
 }
 
 enum WaitlistStatus {

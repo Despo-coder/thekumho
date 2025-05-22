@@ -4,11 +4,12 @@ import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { ChevronLeft, Loader2, Trash2 } from "lucide-react";
+import { ChevronLeft, Loader2, Trash2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCategory, updateCategory, deleteCategory } from "@/lib/actions/menu-actions-reexport";
 import React from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface EditCategoryProps {
     params: Promise<{ id: string }>;
@@ -210,6 +211,32 @@ export default function EditCategory({ params }: EditCategoryProps) {
                     </div>
                 </div>
             )}
+
+            <Tabs defaultValue="items" className="w-full">
+                <TabsList className="mb-8">
+                    <TabsTrigger value="items">Menu Items</TabsTrigger>
+                    <TabsTrigger value="categories">Categories</TabsTrigger>
+                    <TabsTrigger value="menus">Menus</TabsTrigger>
+                    <TabsTrigger value="promotions">Promotions</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="promotions">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle>Promotions</CardTitle>
+                            <Link href="/admin/menu/promotions/new">
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add Promotion
+                                </Button>
+                            </Link>
+                        </CardHeader>
+                        <CardContent>
+                            {/* Promotions list table */}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
 
             <Card>
                 <CardHeader>

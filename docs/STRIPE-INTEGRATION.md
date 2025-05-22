@@ -7,9 +7,10 @@ This document provides a comprehensive guide on how Stripe is integrated with ou
 2. [Environment Variables](#environment-variables)
 3. [Webhook Setup](#webhook-setup)
 4. [Cart and Order Implementation](#cart-and-order-implementation)
-5. [Local Development Testing](#local-development-testing)
-6. [Production Considerations](#production-considerations)
-7. [Troubleshooting](#troubleshooting)
+5. [Discount and Promotion Handling](#discount-and-promotion-handling)
+6. [Local Development Testing](#local-development-testing)
+7. [Production Considerations](#production-considerations)
+8. [Troubleshooting](#troubleshooting)
 
 ## Order and Payment Flow
 
@@ -96,6 +97,62 @@ For production (e.g., on Vercel):
 1. Go to your project settings
 2. Navigate to Environment Variables
 3. Add `STRIPE_WEBHOOK_SECRET` with the value from Stripe
+
+## Discount and Promotion Handling
+
+The application supports applying discounts and promotions to orders, which are tracked through the Stripe payment process and recorded in the sales table.
+
+### Including Discount Information in Stripe Metadata
+
+When processing a payment with Stripe, discount information is included in the payment metadata:
+
+```javascript
+// Example of creating a payment intent with discount metadata
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: calculatedTotal * 100, // Total after discount, in cents
+  currency: 'usd',
+  metadata: {
+    userId: userId,
+    orderId: order.id,
+    orderType: orderData.orderType,
+    pickupTime: orderData.estimatedPickupTime,
+    items: JSON.stringify(lineItems),
+    discount: discountAmount, // Include discount amount in metadata
+    promotionId: promotion?.id // Include promotion ID if available
+  }
+});
+```
+
+### Webhook Handling for Discounts
+
+The webhook handler (`/api/webhook/stripe/route.ts`) processes discount information from Stripe events:
+
+1. **Extracting Discount Data**: When a payment event is received, the webhook extracts discount information from the metadata:
+   ```javascript
+   // Extract discount from metadata if available
+   const discount = metadata?.discount ? Number(metadata.discount) : 0;
+   ```
+
+2. **Recording in Sales Table**: The discount amount is saved in the `discount` field of the Sales record:
+   ```javascript
+   await createSaleFromPayment({
+     subtotal: subtotal,
+     tax: tax,
+     total: amount,
+     discount: discount, // Save discount amount in sales record
+     paymentMethod: 'stripe',
+     orderId: orderId,
+     processedById: metadata?.userId || 'system',
+     notes: `Payment processed via Stripe. ${discount > 0 ? `Discount applied: $${discount.toFixed(2)}` : ''}`
+   });
+   ```
+
+3. **Consistent Handling**: This process works across all payment event types:
+   - `charge.succeeded`: When a charge is processed directly
+   - `payment_intent.succeeded`: When a payment intent completes successfully
+   - `checkout.session.completed`: When a checkout session is completed
+
+This ensures that any discounts applied during checkout are properly tracked in the sales system, allowing for accurate financial reporting.
 
 ## Cart and Order Implementation
 

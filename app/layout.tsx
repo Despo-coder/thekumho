@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Sawarabi_Mincho, Kaisei_Opti } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner"
 import Footer from "@/components/footer";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/navbar";
@@ -66,6 +67,7 @@ export default async function RootLayout({
             <main>
               {children}
             </main>
+            <Toaster />
             <Footer />
           </Providers>
         </CartProvider>

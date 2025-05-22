@@ -34,7 +34,24 @@ This document outlines the specific action points and development tasks for impl
 - **Assigned To:** TBD
 - **Deadline:** TBD
 
-### 3. Reservation Management
+### 3. Promotions Management System ✅
+- **Tasks:**
+  - ✅ Create database schema for promotions and discounts
+  - ✅ Implement promotion types (percentage, fixed amount, free item, BOGO)
+  - ✅ Build admin interface for creating and managing promotions
+  - ✅ Add coupon code functionality
+  - ✅ Implement time-based promotions with start/end dates
+  - Create API for promotion validation and application
+  - Add usage tracking and analytics
+  
+- **Expected Outcome:**
+  Comprehensive promotions system allowing the restaurant to create special offers, discounts, and coupon codes to drive sales and customer engagement.
+
+- **Current Status:** Core functionality implemented with admin UI for creating and managing promotions. API endpoints for validation and checkout integration still needed.
+- **Assigned To:** TBD
+- **Deadline:** TBD
+
+### 4. Reservation Management
 - **Tasks:**
   - Create calendar view of reservations
   - Implement reservation confirmation/rejection functionality
@@ -48,7 +65,7 @@ This document outlines the specific action points and development tasks for impl
 - **Assigned To:** TBD
 - **Deadline:** TBD
 
-### 4. User Role Management
+### 5. User Role Management
 - **Tasks:**
   - Implement role-based access control
   - Create user management interface for admins
@@ -62,7 +79,7 @@ This document outlines the specific action points and development tasks for impl
 - **Assigned To:** TBD
 - **Deadline:** TBD
 
-### 5. Analytics Dashboard
+### 6. Analytics Dashboard
 - **Tasks:**
   - Design key performance indicators
   - Build sales and revenue reports
@@ -76,7 +93,7 @@ This document outlines the specific action points and development tasks for impl
 - **Assigned To:** TBD
 - **Deadline:** TBD
 
-### 6. Sales Management System ✅
+### 7. Sales Management System ✅
 - **Tasks:**
   - ✅ Create database schema for sales tracking
   - ✅ Build API endpoints for sales operations
@@ -91,7 +108,7 @@ This document outlines the specific action points and development tasks for impl
 - **Assigned To:** TBD
 - **Deadline:** TBD
 
-### 7. Waitlist Management System ✅
+### 8. Waitlist Management System ✅
 - **Tasks:**
   - ✅ Create database schema for waitlist tracking
   - ✅ Build API endpoints for waitlist operations
@@ -110,11 +127,12 @@ This document outlines the specific action points and development tasks for impl
 
 1. Begin with Menu Management System as it's fundamental to the application ✅
 2. Proceed with Order Processing System as it directly impacts customer experience
-3. Implement Reservation Management to optimize restaurant operations
-4. Develop User Role Management to ensure secure access control
-5. Build the Sales Management System for financial tracking ✅
-6. Implement Waitlist Management System for improved customer experience ✅
-7. Finally, develop the Analytics Dashboard to leverage collected data
+3. Implement the Promotions Management System to enhance sales and customer engagement ✅
+4. Implement Reservation Management to optimize restaurant operations
+5. Develop User Role Management to ensure secure access control
+6. Build the Sales Management System for financial tracking ✅
+7. Implement Waitlist Management System for improved customer experience ✅
+8. Finally, develop the Analytics Dashboard to leverage collected data
 
 ## Required Resources
 
@@ -126,8 +144,10 @@ This document outlines the specific action points and development tasks for impl
 ## Next Steps
 
 1. ✅ Develop the Menu Management interface
-2. Enhance image upload functionality for menu items to support file uploads
-3. Implement the Order Processing System as next priority
-4. Create UI components for Sales and Waitlist management
-5. Implement testing for completed features
-6. Review and plan for the Reservation Management system 
+2. ✅ Implement the Promotions Management system
+3. Enhance image upload functionality for menu items to support file uploads
+4. Implement the Order Processing System as next priority
+5. Create API endpoints for promotion validation and checkout integration
+6. Create UI components for Sales and Waitlist management
+7. Implement testing for completed features
+8. Review and plan for the Reservation Management system 

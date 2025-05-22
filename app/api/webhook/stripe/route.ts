@@ -464,18 +464,22 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
         const subtotal = amount / (1 + taxRate);
         const tax = amount - subtotal;
         
+        // Extract discount from metadata if available
+        const discount = metadata?.discount ? Number(metadata.discount) : 0;
+        
         // Create the sales record
         await createSaleFromPayment({
           subtotal: subtotal,
           tax: tax,
           total: amount,
+          discount: discount,
           paymentMethod: charge.payment_method_details?.type || 'stripe',
           orderId: orderId,
           processedById: metadata?.userId || 'system',
-          notes: `Payment processed via Stripe. Charge ID: ${charge.id}`
+          notes: `Payment processed via Stripe. Charge ID: ${charge.id}${discount > 0 ? `. Discount applied: $${discount.toFixed(2)}` : ''}`
         });
         
-        console.log(`Created sales record for order ${orderId}`);
+        console.log(`Created sales record for order ${orderId}${discount > 0 ? ` with discount: $${discount.toFixed(2)}` : ''}`);
       } catch (saleError) {
         // Log but don't fail the webhook
         console.error('Error creating sales record:', saleError);
@@ -522,19 +526,23 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       const subtotal = amount / (1 + taxRate);
       const tax = amount - subtotal;
       
+      // Extract discount from metadata if available
+      const discount = metadata?.discount ? Number(metadata.discount) : 0;
+      
       // Create the sales record
       await createSaleFromPayment({
         subtotal: subtotal,
         tax: tax,
         total: amount,
+        discount: discount,
         paymentMethod: typeof paymentIntent.payment_method === 'string' ? 
           paymentIntent.payment_method : 'stripe',
         orderId: metadata.orderId,
         processedById: metadata.userId || 'system',
-        notes: `Payment intent processed via Stripe. Intent ID: ${paymentIntent.id}`
+        notes: `Payment intent processed via Stripe. Intent ID: ${paymentIntent.id}${discount > 0 ? `. Discount applied: $${discount.toFixed(2)}` : ''}`
       });
       
-      console.log(`Created sales record for payment intent ${paymentIntent.id}`);
+      console.log(`Created sales record for payment intent ${paymentIntent.id}${discount > 0 ? ` with discount: $${discount.toFixed(2)}` : ''}`);
     } catch (error) {
       // Log but don't fail the webhook
       console.error('Error creating sales record from payment intent:', error);
@@ -573,7 +581,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   // If the session was paid, update the order
   if (session.payment_status === 'paid') {
     console.log(`Processing completed checkout session for order: ${metadata.orderId}`);
-    await updateOrderPaymentStatus(
+    const result = await updateOrderPaymentStatus(
       metadata.orderId,
       PaymentStatus.PAID,
       OrderStatus.CONFIRMED,
@@ -581,6 +589,37 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       'Payment confirmed through Stripe Checkout',
       typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id
     );
+    
+    // Create a sales record if there's payment data
+    if (result?.success && session.amount_total) {
+      try {
+        // Calculate tax as 7% of total
+        const amount = Number(session.amount_total) / 100; // Convert from cents
+        const taxRate = 0.07;
+        const subtotal = amount / (1 + taxRate);
+        const tax = amount - subtotal;
+        
+        // Extract discount from metadata if available
+        const discount = metadata?.discount ? Number(metadata.discount) : 0;
+        
+        // Create the sales record
+        await createSaleFromPayment({
+          subtotal: subtotal,
+          tax: tax,
+          total: amount,
+          discount: discount,
+          paymentMethod: 'stripe-checkout',
+          orderId: metadata.orderId,
+          processedById: metadata.userId || 'system',
+          notes: `Payment processed via Stripe Checkout. Session ID: ${session.id}${discount > 0 ? `. Discount applied: $${discount.toFixed(2)}` : ''}`
+        });
+        
+        console.log(`Created sales record for checkout session ${session.id}${discount > 0 ? ` with discount: $${discount.toFixed(2)}` : ''}`);
+      } catch (error) {
+        // Log but don't fail the webhook
+        console.error('Error creating sales record from checkout session:', error);
+      }
+    }
   }
 }
 

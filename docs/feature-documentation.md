@@ -124,6 +124,38 @@ The order system allows customers to place food orders for pickup, tracks order 
 3. Staff can view order details and customer information
 4. Completed orders are archived but remain accessible for reference
 
+## 4.1 Promotions System
+
+### Overview
+
+The promotions system allows the restaurant to create special offers, discounts, and coupon codes to attract customers and drive sales.
+
+### Implementation Details
+
+- **Multiple Promotion Types**: Support for percentage discounts, fixed amount discounts, free items, and buy-one-get-one offers
+- **Coupon Code Management**: Optional coupon codes that customers can apply at checkout
+- **Time-Based Promotions**: Start and end dates for promotions with automatic activation/deactivation
+- **Usage Limits**: Optional limits on how many times a promotion can be used
+- **Targeted Promotions**: Apply to all menu items or specific categories/items
+- **Admin Interface**: Complete CRUD operations for promotions management
+- **Discount Calculation**: Server-side validation and calculation of discounts
+
+### User Experience
+
+#### Customer Flow
+1. Customer can view available promotions on the menu or checkout page
+2. For coupon-based promotions, customer enters coupon code at checkout
+3. System validates the coupon and applies the discount
+4. Order summary shows original prices, applied discount, and final total
+5. Confirmation includes details of the applied promotion
+
+#### Admin Flow
+1. Admin can create new promotions with detailed rules and conditions
+2. Promotions can be managed through a dedicated tab in the menu management interface
+3. Dashboard shows active, scheduled, and expired promotions
+4. Usage statistics track how often each promotion is used
+5. Promotions can be edited or deactivated as needed
+
 ## 5. Admin Dashboard
 
 ### Overview

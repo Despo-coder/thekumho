@@ -10,6 +10,16 @@ import { ChevronLeft, ShoppingBag, AlertCircle, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { StripePaymentWrapper } from "@/components/checkout/StripePaymentForm";
+import { CouponInput } from "./coupon-input";
+
+// Import the Promotion interface 
+interface Promotion {
+    id: string;
+    name: string;
+    description?: string | null;
+    type: string;
+    couponCode?: string | null;
+}
 
 export default function CheckoutPage() {
     const { cart, removeFromCart, clearCart } = useCart();
@@ -29,6 +39,8 @@ export default function CheckoutPage() {
     const [clientSecret, setClientSecret] = useState("");
     const [paymentError, setPaymentError] = useState("");
     const [orderCreated, setOrderCreated] = useState(false);
+    const [promotion, setPromotion] = useState<Promotion | null>(null);
+    const [discount, setDiscount] = useState(0);
 
     // Avoid hydration issues by only rendering cart content after mounting
     useEffect(() => {
@@ -53,6 +65,11 @@ export default function CheckoutPage() {
         }));
     };
 
+    const handleApplyCoupon = (newPromotion: Promotion, newDiscount: number) => {
+        setPromotion(newPromotion);
+        setDiscount(newDiscount);
+    };
+
     // Create payment intent when paying with card
     const createPaymentIntent = async () => {
         if (cart.subtotal <= 0) return;
@@ -61,9 +78,8 @@ export default function CheckoutPage() {
         setPaymentError(""); // Clear any previous errors
 
         try {
-            console.log("Creating payment intent for amount:", cart.subtotal + cart.subtotal * 0.075);
-
-            const totalAmount = cart.subtotal + cart.subtotal * 0.075;
+            const totalAmount = cart.subtotal + cart.subtotal * 0.075 - discount;
+            console.log("Creating payment intent for amount:", totalAmount);
             console.log("Cart items:", cart.items);
 
             const response = await fetch("/api/payment", {
@@ -80,6 +96,8 @@ export default function CheckoutPage() {
                             menuItemId: item.menuItemId,
                             quantity: item.quantity,
                         }))),
+                        promotionId: promotion?.id,
+                        discount: discount > 0 ? discount : undefined
                     }
                 }),
             });
@@ -170,6 +188,8 @@ export default function CheckoutPage() {
                         price: item.price
                     })),
                     subtotal: cart.subtotal,
+                    discount: discount > 0 ? discount : undefined,
+                    promotionId: promotion?.id,
                     orderNotes,
                     pickupTime,
                     orderType: "PICKUP",
@@ -229,9 +249,15 @@ export default function CheckoutPage() {
                             <span>Tax (7.5%)</span>
                             <span>{formatCurrency(cart.subtotal * 0.075)}</span>
                         </div>
+                        {discount > 0 && (
+                            <div className="flex justify-between mb-4 text-green-600 font-medium">
+                                <span>Discount ({promotion?.name})</span>
+                                <span>-{formatCurrency(discount)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between font-bold text-lg border-t pt-4">
                             <span>Total</span>
-                            <span>{formatCurrency(cart.subtotal + cart.subtotal * 0.075)}</span>
+                            <span>{formatCurrency(cart.subtotal + cart.subtotal * 0.075 - discount)}</span>
                         </div>
                     </div>
 
@@ -251,7 +277,7 @@ export default function CheckoutPage() {
                             clientSecret={clientSecret}
                             onPaymentSuccess={handlePaymentSuccess}
                             onPaymentError={handlePaymentError}
-                            total={cart.subtotal + cart.subtotal * 0.075}
+                            total={cart.subtotal + cart.subtotal * 0.075 - discount}
                         />
                     </div>
 
@@ -353,10 +379,24 @@ export default function CheckoutPage() {
                             </div>
                         </div>
 
+                        {/* Add Coupon Input Component */}
+                        <CouponInput
+                            onApply={handleApplyCoupon}
+                            cartItems={cart.items}
+                            cartTotal={cart.subtotal}
+                            disabled={isSubmitting}
+                        />
+
                         <div className="border-t mt-4 pt-4">
+                            {discount > 0 && (
+                                <div className="flex justify-between text-green-600 font-medium mb-2">
+                                    <span>Discount ({promotion?.name})</span>
+                                    <span>-{formatCurrency(discount)}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between font-bold">
                                 <span>Total</span>
-                                <span>{formatCurrency(cart.subtotal + cart.subtotal * 0.075)}</span>
+                                <span>{formatCurrency(cart.subtotal + cart.subtotal * 0.075 - discount)}</span>
                             </div>
                         </div>
                     </div>

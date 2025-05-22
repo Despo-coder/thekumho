@@ -7,8 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, PlusCircle, Search, Edit, Trash2, ChevronLeft } from "lucide-react";
+import { Loader2, PlusCircle, Search, Edit, Trash2, ChevronLeft, Ticket } from "lucide-react";
+//import { Loader2, PlusCircle, Search, Edit, Trash2, ChevronLeft, Calendar, CookingPot, DollarSign, Package, ShoppingBag, Ticket, Users, Utensils } from "lucide-react";
 import Link from "next/link";
+import { getPromotions } from "@/lib/actions/promotion-action";
 import { getCategories, getMenus, getMenuItems, deleteMenuItem, deleteMenu } from "@/lib/actions/menu-actions-reexport";
 import Image from "next/image";
 
@@ -47,6 +49,24 @@ type Menu = {
     };
 };
 
+type Promotion = {
+    id: string;
+    name: string;
+    description: string | null;
+    promotionType: string;
+    value: number;
+    minimumOrderValue: number | null;
+    startDate: string | Date;
+    endDate: string | Date;
+    isActive: boolean;
+    couponCode: string | null;
+    usageCount: number;
+    usageLimit: number | null;
+    freeItemId: string | null;
+    applyToAllItems: boolean;
+    [key: string]: string | number | boolean | null | Date | Record<string, unknown> | unknown[];
+};
+
 export default function MenuManagement() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -56,7 +76,7 @@ export default function MenuManagement() {
 
     // Delete state
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-    const [itemTypeToDelete, setItemTypeToDelete] = useState<'menu-item' | 'category' | 'menu'>('menu-item');
+    const [itemTypeToDelete, setItemTypeToDelete] = useState<'menu-item' | 'category' | 'menu' | 'promotion'>('menu-item');
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleteError, setDeleteError] = useState("");
@@ -66,10 +86,12 @@ export default function MenuManagement() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [menus, setMenus] = useState<Menu[]>([]);
     const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
+    const [promotions, setPromotions] = useState<Promotion[]>([]);
 
     // Fetch data function wrapped in useCallback
     const fetchData = useCallback(async () => {
         try {
+            // Only fetch menu items, categories, and menus by default
             const [menuItemsData, categoriesData, menusData] = await Promise.all([
                 getMenuItems(),
                 getCategories(),
@@ -101,6 +123,35 @@ export default function MenuManagement() {
         }
     }, []); // Empty dependency array as it doesn't depend on any props or state
 
+    // Separate function to fetch promotions data only when needed
+    const fetchPromotionsData = useCallback(async () => {
+        try {
+            const promotionsData = await getPromotions();
+
+            if (promotionsData.promotions) {
+                try {
+                    // Use JSON serialization trick to convert Decimal objects to plain numbers
+                    const jsonString = JSON.stringify(promotionsData.promotions);
+                    const parsedPromotions = JSON.parse(jsonString);
+
+                    // Ensure all values have proper defaults
+                    const safePromotions = parsedPromotions.map((promo: Record<string, unknown>) => ({
+                        ...promo,
+                        value: typeof promo.value === 'number' ? promo.value : 0,
+                        minimumOrderValue: promo.minimumOrderValue !== undefined ? promo.minimumOrderValue : null
+                    }));
+
+                    setPromotions(safePromotions as Promotion[]);
+                } catch (error) {
+                    console.error("Error processing promotions data:", error);
+                    setPromotions([]);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching promotions data:", error);
+        }
+    }, []);
+
     useEffect(() => {
         // Check if user is authenticated and has appropriate role
         if (status === "unauthenticated") {
@@ -114,10 +165,17 @@ export default function MenuManagement() {
                 return;
             }
 
-            // Fetch all menu data
+            // Fetch all menu data (except promotions)
             fetchData();
         }
     }, [status, session, router, fetchData]);
+
+    // Load promotions data only when the promotions tab is active
+    useEffect(() => {
+        if (activeTab === "promotions" && status === "authenticated") {
+            fetchPromotionsData();
+        }
+    }, [activeTab, status, fetchPromotionsData]);
 
     // Filter menu items when search term changes
     useEffect(() => {
@@ -165,7 +223,7 @@ export default function MenuManagement() {
     };
 
     // Handle delete confirmation
-    const openDeleteConfirm = (id: string, type: 'menu-item' | 'category' | 'menu') => {
+    const openDeleteConfirm = (id: string, type: 'menu-item' | 'category' | 'menu' | 'promotion') => {
         setItemToDelete(id);
         setItemTypeToDelete(type);
         setDeleteConfirmOpen(true);
@@ -199,6 +257,17 @@ export default function MenuManagement() {
             } else if (itemTypeToDelete === 'menu') {
                 // Call delete menu API
                 result = await deleteMenu(itemToDelete);
+            } else if (itemTypeToDelete === 'promotion') {
+                const response = await fetch(`/api/promotions/${itemToDelete}`, {
+                    method: 'DELETE',
+                });
+                result = await response.json();
+
+                if (!response.ok) {
+                    result = { error: result.error || 'Failed to delete promotion' };
+                } else {
+                    result = { success: true };
+                }
             }
 
             if (result.error) {
@@ -218,6 +287,71 @@ export default function MenuManagement() {
             setDeleteError(`An error occurred while deleting the ${itemTypeToDelete.replace('-', ' ')}. Please try again.`);
             setIsDeleting(false);
         }
+    };
+
+    // Add this function to format promotion types
+    const formatPromotionType = (type: string): string => {
+        switch (type) {
+            case "PERCENTAGE_DISCOUNT":
+                return "Percentage Off";
+            case "FIXED_AMOUNT_DISCOUNT":
+                return "Fixed Amount Off";
+            case "FREE_ITEM":
+                return "Free Item";
+            case "BUY_ONE_GET_ONE":
+                return "Buy One Get One";
+            default:
+                return type;
+        }
+    };
+
+    // Add function to format promotion values
+    const formatPromotionValue = (type: string, value: number): string => {
+        switch (type) {
+            case "PERCENTAGE_DISCOUNT":
+                return `${value}%`;
+            case "FIXED_AMOUNT_DISCOUNT":
+                return `$${value.toFixed(2)}`;
+            default:
+                return `${value}`;
+        }
+    };
+
+    // Add function to get status text
+    const getStatusText = (promo: Promotion): string => {
+        const now = new Date();
+        const startDate = new Date(promo.startDate);
+        const endDate = new Date(promo.endDate);
+
+        if (!promo.isActive) return "Inactive";
+        if (now < startDate) return "Scheduled";
+        if (now > endDate) return "Expired";
+        return "Active";
+    };
+
+    // Add function to get status class
+    const getStatusClass = (promo: Promotion): string => {
+        const status = getStatusText(promo);
+        switch (status) {
+            case "Active":
+                return "bg-green-100 text-green-800";
+            case "Scheduled":
+                return "bg-blue-100 text-blue-800";
+            case "Expired":
+                return "bg-gray-100 text-gray-800";
+            case "Inactive":
+                return "bg-yellow-100 text-yellow-800";
+            default:
+                return "bg-gray-100 text-gray-800";
+        }
+    };
+
+    // Add function to format date range
+    const formatDateRange = (startDate: string | Date, endDate: string | Date): string => {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
     };
 
     if (status === "loading" || isLoading) {
@@ -301,6 +435,7 @@ export default function MenuManagement() {
                     <TabsTrigger value="items">Menu Items</TabsTrigger>
                     <TabsTrigger value="categories">Categories</TabsTrigger>
                     <TabsTrigger value="menus">Menus</TabsTrigger>
+                    <TabsTrigger value="promotions">Promotions</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="items">
@@ -581,6 +716,123 @@ export default function MenuManagement() {
                                             <tr>
                                                 <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                                                     No menus found
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="promotions">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle>Promotions</CardTitle>
+                            <Link href="/admin/menu/promotions/new">
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add Promotion
+                                </Button>
+                            </Link>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="rounded-md border">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Name
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Type
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Value
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Status
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Date Range
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Actions
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {promotions.length > 0 ? (
+                                            promotions.map((promo) => (
+                                                <tr key={promo.id}>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center">
+                                                            <div className="flex-shrink-0 h-10 w-10 mr-3">
+                                                                <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                                                                    <Ticket className="h-5 w-5 text-orange-500" />
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-900">
+                                                                    {promo.name}
+                                                                </div>
+                                                                {promo.couponCode && (
+                                                                    <div className="text-xs text-gray-500">
+                                                                        Code: <span className="font-mono">{promo.couponCode}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {formatPromotionType(promo.promotionType)}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {formatPromotionValue(promo.promotionType, promo.value)}
+                                                        {promo.minimumOrderValue && (
+                                                            <div className="text-xs text-gray-500">
+                                                                Min. order: ${Number(promo.minimumOrderValue).toFixed(2)}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span
+                                                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(promo)}`}
+                                                        >
+                                                            {getStatusText(promo)}
+                                                        </span>
+                                                        {promo.usageLimit && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                Uses: {promo.usageCount}/{promo.usageLimit}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {formatDateRange(promo.startDate, promo.endDate)}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                        <div className="flex items-center space-x-2">
+                                                            <Link href={`/admin/menu/promotions/${promo.id}`}>
+                                                                <Button variant="ghost" size="icon">
+                                                                    <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                            </Link>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => openDeleteConfirm(promo.id, 'promotion')}
+                                                            >
+                                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                                                    No promotions found. Create your first promotion to start offering discounts.
                                                 </td>
                                             </tr>
                                         )}
