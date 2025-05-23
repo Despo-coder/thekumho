@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/lib/cart/CartContext';
 import Link from 'next/link';
-import { CheckCircle2, AlertCircle, Home, Utensils, Clock } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Home, Utensils, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 //import { useSession } from 'next-auth/react';
 // import { format } from 'date-fns';
@@ -24,11 +24,35 @@ type OrderDetails = {
 function ConfirmationContent() {
     const searchParams = useSearchParams();
     const { clearCart } = useCart();
-    const [status, setStatus] = useState<'success' | 'processing' | 'error'>('processing');
+    const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'waiting'>('loading');
     const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
     const [mounted, setMounted] = useState(false);
     // const { data: session } = useSession();
     const [isLoading, setIsLoading] = useState(true);
+
+    const fetchOrderWithRetry = async (paymentIntentId: string, maxRetries = 3, delay = 1000) => {
+        let retries = 0;
+
+        while (retries < maxRetries) {
+            try {
+                const response = await fetch(`/api/orders/by-payment?paymentIntentId=${paymentIntentId}`);
+
+                if (response.ok) {
+                    return await response.json();
+                }
+
+                // If not found, wait and retry
+                await new Promise(resolve => setTimeout(resolve, delay));
+                retries++;
+            } catch (error) {
+                if (retries === maxRetries - 1) throw error;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                retries++;
+            }
+        }
+
+        throw new Error('Failed to fetch order details after multiple retries');
+    };
 
     // Check payment status from URL and fetch order details
     useEffect(() => {
@@ -38,33 +62,20 @@ function ConfirmationContent() {
                 setIsLoading(true);
                 // Get the payment intent ID from the URL
                 const paymentIntentId = searchParams.get('payment_intent');
-                const redirectStatus = searchParams.get('redirect_status');
 
                 if (!paymentIntentId) {
-                    setStatus(redirectStatus === 'succeeded' ? 'success' : 'error');
-                    setIsLoading(false);
+                    setStatus('waiting');
                     return;
                 }
 
-                // Fetch order details using the payment intent ID
-                const response = await fetch(`/api/orders/by-payment?paymentIntentId=${paymentIntentId}`);
-
-                if (!response.ok) {
-                    throw new Error('Failed to fetch order details');
-                }
-
-                const data = await response.json();
-
-                if (data.order) {
-                    setOrderDetails(data.order);
-                    setStatus('success');
-                    // Clear the cart after successful payment
-                    clearCart();
-                } else {
-                    setStatus('error');
-                }
+                // Try to fetch 3 times with 2-second delays
+                const data = await fetchOrderWithRetry(paymentIntentId, 3, 2000);
+                setOrderDetails(data.order);
+                setStatus('success');
+                // Clear the cart after successful payment
+                clearCart();
             } catch (error) {
-                console.error('Error fetching order details:', error);
+                console.error('Error fetching order:', error);
                 setStatus('error');
             } finally {
                 setIsLoading(false);
@@ -128,14 +139,12 @@ function ConfirmationContent() {
                     </div>
                 )}
 
-                {status === 'processing' && (
+                {status === 'waiting' && (
                     <div className="text-center">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-100 mb-6">
-                            <AlertCircle className="h-8 w-8 text-yellow-600" />
-                        </div>
-                        <h1 className="text-2xl font-bold mb-4">Payment Processing</h1>
-                        <p className="text-gray-600 mb-6">
-                            Your payment is being processed. Please do not close this window. This may take a moment.
+                        <Loader2 className="h-8 w-8 animate-spin text-orange-500 mx-auto mb-4" />
+                        <h1 className="text-2xl font-bold mb-4">Processing Payment</h1>
+                        <p className="text-gray-600">
+                            Your payment is being processed. Please wait a moment...
                         </p>
                     </div>
                 )}
