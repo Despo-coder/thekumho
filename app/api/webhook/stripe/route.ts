@@ -484,6 +484,17 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
         // Create promotion usage tracking record if promotion was used
         if (metadata?.promotionId && discount > 0) {
           try {
+            // Calculate total quantity of items in cart
+            let totalItemCount = null;
+            if (metadata.items) {
+              try {
+                const items = JSON.parse(metadata.items);
+                totalItemCount = items.reduce((total: number, item: { quantity: number }) => total + item.quantity, 0);
+              } catch (e) {
+                console.error('Error parsing items for cart count:', e);
+              }
+            }
+            
             await createPromotionUsageRecord({
               promotionId: metadata.promotionId,
               userId: metadata.userId || 'system',
@@ -493,7 +504,7 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
               finalAmount: amount,
               couponCode: metadata.couponCode || null,
               orderType: metadata.orderType || 'PICKUP',
-              cartItemCount: metadata.items ? JSON.parse(metadata.items).length : null,
+              cartItemCount: totalItemCount,
               chargeId: charge.id
             });
             
@@ -569,6 +580,17 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       // Create promotion usage tracking record if promotion was used
       if (metadata?.promotionId && discount > 0) {
         try {
+          // Calculate total quantity of items in cart
+          let totalItemCount = null;
+          if (metadata.items) {
+            try {
+              const items = JSON.parse(metadata.items);
+              totalItemCount = items.reduce((total: number, item: { quantity: number }) => total + item.quantity, 0);
+            } catch (e) {
+              console.error('Error parsing items for cart count:', e);
+            }
+          }
+          
           await createPromotionUsageRecord({
             promotionId: metadata.promotionId,
             userId: metadata.userId || 'system',
@@ -578,7 +600,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
             finalAmount: amount,
             couponCode: metadata.couponCode || null,
             orderType: metadata.orderType || 'PICKUP',
-            cartItemCount: metadata.items ? JSON.parse(metadata.items).length : null,
+            cartItemCount: totalItemCount,
             chargeId: paymentIntent.id
           });
           
@@ -663,6 +685,17 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         // Create promotion usage tracking record if promotion was used
         if (metadata?.promotionId && discount > 0) {
           try {
+            // Calculate total quantity of items in cart
+            let totalItemCount = null;
+            if (metadata.items) {
+              try {
+                const items = JSON.parse(metadata.items);
+                totalItemCount = items.reduce((total: number, item: { quantity: number }) => total + item.quantity, 0);
+              } catch (e) {
+                console.error('Error parsing items for cart count:', e);
+              }
+            }
+            
             await createPromotionUsageRecord({
               promotionId: metadata.promotionId,
               userId: metadata.userId || 'system',
@@ -672,7 +705,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
               finalAmount: amount,
               couponCode: metadata.couponCode || null,
               orderType: metadata.orderType || 'PICKUP',
-              cartItemCount: metadata.items ? JSON.parse(metadata.items).length : null,
+              cartItemCount: totalItemCount,
               chargeId: session.id
             });
             
