@@ -480,6 +480,28 @@ const handleChargeSucceeded = async (charge: Stripe.Charge) => {
         });
         
         console.log(`Created sales record for order ${orderId}${discount > 0 ? ` with discount: $${discount.toFixed(2)}` : ''}`);
+        
+        // Create promotion usage tracking record if promotion was used
+        if (metadata?.promotionId && discount > 0) {
+          try {
+            await createPromotionUsageRecord({
+              promotionId: metadata.promotionId,
+              userId: metadata.userId || 'system',
+              orderId: orderId,
+              discountAmount: discount,
+              originalAmount: amount + discount,
+              finalAmount: amount,
+              couponCode: metadata.couponCode || null,
+              orderType: metadata.orderType || 'PICKUP',
+              cartItemCount: metadata.items ? JSON.parse(metadata.items).length : null,
+              chargeId: charge.id
+            });
+            
+            console.log(`Created promotion usage record for promotion ${metadata.promotionId} (charge succeeded)`);
+          } catch (promotionError) {
+            console.error('Error creating promotion usage record (charge succeeded):', promotionError);
+          }
+        }
       } catch (saleError) {
         // Log but don't fail the webhook
         console.error('Error creating sales record:', saleError);
@@ -543,6 +565,28 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       });
       
       console.log(`Created sales record for payment intent ${paymentIntent.id}${discount > 0 ? ` with discount: $${discount.toFixed(2)}` : ''}`);
+      
+      // Create promotion usage tracking record if promotion was used
+      if (metadata?.promotionId && discount > 0) {
+        try {
+          await createPromotionUsageRecord({
+            promotionId: metadata.promotionId,
+            userId: metadata.userId || 'system',
+            orderId: metadata.orderId,
+            discountAmount: discount,
+            originalAmount: amount + discount,
+            finalAmount: amount,
+            couponCode: metadata.couponCode || null,
+            orderType: metadata.orderType || 'PICKUP',
+            cartItemCount: metadata.items ? JSON.parse(metadata.items).length : null,
+            chargeId: paymentIntent.id
+          });
+          
+          console.log(`Created promotion usage record for promotion ${metadata.promotionId} (payment intent)`);
+        } catch (promotionError) {
+          console.error('Error creating promotion usage record (payment intent):', promotionError);
+        }
+      }
     } catch (error) {
       // Log but don't fail the webhook
       console.error('Error creating sales record from payment intent:', error);
@@ -615,6 +659,28 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         });
         
         console.log(`Created sales record for checkout session ${session.id}${discount > 0 ? ` with discount: $${discount.toFixed(2)}` : ''}`);
+        
+        // Create promotion usage tracking record if promotion was used
+        if (metadata?.promotionId && discount > 0) {
+          try {
+            await createPromotionUsageRecord({
+              promotionId: metadata.promotionId,
+              userId: metadata.userId || 'system',
+              orderId: metadata.orderId,
+              discountAmount: discount,
+              originalAmount: amount + discount,
+              finalAmount: amount,
+              couponCode: metadata.couponCode || null,
+              orderType: metadata.orderType || 'PICKUP',
+              cartItemCount: metadata.items ? JSON.parse(metadata.items).length : null,
+              chargeId: session.id
+            });
+            
+            console.log(`Created promotion usage record for promotion ${metadata.promotionId} (checkout session)`);
+          } catch (promotionError) {
+            console.error('Error creating promotion usage record (checkout session):', promotionError);
+          }
+        }
       } catch (error) {
         // Log but don't fail the webhook
         console.error('Error creating sales record from checkout session:', error);
@@ -677,5 +743,83 @@ async function updateOrderPaymentStatus(
   } catch (error) {
     console.error(`Error updating order ${orderId} payment status:`, error);
     return { success: false, error: 'Failed to update order status' };
+  }
+}
+
+// Function to create promotion usage tracking record
+async function createPromotionUsageRecord({
+  promotionId,
+  userId,
+  orderId,
+  discountAmount,
+  originalAmount,
+  finalAmount,
+  couponCode,
+  orderType,
+  cartItemCount,
+  // chargeId
+}: {
+  promotionId: string;
+  userId: string;
+  orderId: string;
+  discountAmount: number;
+  originalAmount: number;
+  finalAmount: number;
+  couponCode?: string | null;
+  orderType?: string;
+  cartItemCount?: number | null;
+  chargeId: string;
+}) {
+  try {
+    // Check if this is the user's first time using any promotion
+    const existingUsage = await prisma.promotionUsage.findFirst({
+      where: { userId }
+    });
+    const isFirstTimeUse = !existingUsage;
+    
+    // Calculate time to conversion (minutes from promotion start to use)
+    const promotion = await prisma.promotion.findUnique({
+      where: { id: promotionId },
+      select: { startDate: true }
+    });
+    
+    const timeToConversion = promotion ? 
+      Math.floor((new Date().getTime() - new Date(promotion.startDate).getTime()) / (1000 * 60)) : null;
+    
+    // Determine customer segment based on order history
+    const userOrderCount = await prisma.order.count({
+      where: { userId }
+    });
+    
+    let customerSegment = 'new';
+    if (userOrderCount > 10) customerSegment = 'vip';
+    else if (userOrderCount > 1) customerSegment = 'returning';
+    
+    // Create the usage record
+    const usageRecord = await prisma.promotionUsage.create({
+      data: {
+        promotionId,
+        userId,
+        orderId,
+        discountAmount,
+        originalAmount,
+        finalAmount,
+        couponCode,
+        customerSegment,
+        orderType: orderType && Object.values(OrderType).includes(orderType as OrderType) 
+          ? orderType as OrderType 
+          : OrderType.PICKUP,
+        isFirstTimeUse,
+        timeToConversion,
+        cartItemCount,
+        // Additional metadata could be added here:
+        // deviceType, referralSource, etc.
+      }
+    });
+    
+    return usageRecord;
+  } catch (error) {
+    console.error('Error in createPromotionUsageRecord:', error);
+    throw error;
   }
 } 

@@ -125,6 +125,7 @@ model Order {
   items              OrderItem[]
   statusUpdates      OrderStatusUpdate[]
   sales              Sale[]
+  promotionUsages    PromotionUsage[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -268,8 +269,9 @@ model User {
   bookings        Booking[]
   orders          Order[]
   waitlistEntries Waitlist[]
-  serverSales     Sale[]     @relation("ServerSales")
-  processedSales  Sale[]     @relation("ProcessedSales")
+  serverSales     Sale[]           @relation("ServerSales")
+  processedSales  Sale[]           @relation("ProcessedSales")
+  promotionUsages PromotionUsage[]
 
   statusUpdates OrderStatusUpdate[]
   notifications Notification[]
@@ -315,6 +317,44 @@ model Promotion {
 
   // Relations
   appliedOrders Order[]
+  usageRecords  PromotionUsage[]
+}
+
+// Detailed promotion usage tracking
+model PromotionUsage {
+  id          String    @id @default(cuid())
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  // Customer and order information
+  userId  String
+  user    User    @relation(fields: [userId], references: [id])
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  // Usage details
+  discountAmount Decimal @db.Decimal(10, 2) // Actual discount applied
+  originalAmount Decimal @db.Decimal(10, 2) // Order total before discount
+  finalAmount    Decimal @db.Decimal(10, 2) // Order total after discount
+
+  // Metadata
+  couponCode      String? // The code used (if any)
+  customerSegment String? // new, returning, vip, etc.
+  orderType       OrderType? // DINE_IN, PICKUP
+  deviceType      String? // mobile, desktop, tablet
+  referralSource  String? // social, email, organic, etc.
+
+  // Additional tracking
+  isFirstTimeUse   Boolean @default(false) // First time this user used any promotion
+  timeToConversion Int? // Minutes from promotion start to use
+  cartItemCount    Int? // Number of items in cart
+
+  createdAt DateTime @default(now())
+
+  @@index([promotionId])
+  @@index([userId])
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 enum WaitlistStatus {

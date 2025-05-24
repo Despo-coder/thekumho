@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 // import { Decimal } from "@prisma/client/runtime/library";
 
-// Define the interface for cart items
-interface CartItem {
+// Define CartItem type locally
+type CartItem = {
   menuItemId: string;
   quantity: number;
   price: number;
-  name?: string;
-  specialInstructions?: string;
-}
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,19 +57,38 @@ export async function POST(request: NextRequest) {
     let freeItem = null;
 
     // If not apply to all items, filter eligible items
-    const eligibleItems = cartItems.filter((item: CartItem) => {
-      if (promotion.applyToAllItems) return true;
+    let eligibleItems: CartItem[] = [];
+    
+    if (promotion.applyToAllItems) {
+      eligibleItems = cartItems;
+    } else {
+      // Fetch menu items with their categories for the cart items
+      const cartMenuItemIds = cartItems.map((item: CartItem) => item.menuItemId);
+      const menuItemsWithCategories = await prisma.menuItem.findMany({
+        where: {
+          id: { in: cartMenuItemIds }
+        },
+        select: {
+          id: true,
+          categoryId: true
+        }
+      });
 
-      // Check if item is directly eligible
-      if (promotion.menuItems.some(menuItem => menuItem.id === item.menuItemId)) {
-        return true;
-      }
+      eligibleItems = cartItems.filter((item: CartItem) => {
+        // Check if item is directly eligible (specific menu item selected)
+        if (promotion.menuItems.some(menuItem => menuItem.id === item.menuItemId)) {
+          return true;
+        }
 
-      // Check if item belongs to eligible category
-      // This would require additional DB query in a real implementation
-      // For now, we'll assume we don't have this info in the cart items
-      return false;
-    });
+        // Check if item belongs to eligible category
+        const menuItemData = menuItemsWithCategories.find(mi => mi.id === item.menuItemId);
+        if (menuItemData && promotion.categories.some(category => category.id === menuItemData.categoryId)) {
+          return true;
+        }
+
+        return false;
+      });
+    }
 
     if (eligibleItems.length === 0 && !promotion.applyToAllItems) {
       return NextResponse.json(
@@ -83,7 +100,7 @@ export async function POST(request: NextRequest) {
     // Check minimum order value if applicable
     if (promotion.minimumOrderValue && cartTotal < promotion.minimumOrderValue.toNumber()) {
       return NextResponse.json({
-        error: `Minimum order value of ${promotion.minimumOrderValue.toNumber()} required for this coupon`,
+        error: `Minimum order value of $${promotion.minimumOrderValue.toNumber().toFixed(2)} required for this coupon`,
         minimumOrderValue: promotion.minimumOrderValue.toNumber()
       }, { status: 400 });
     }
@@ -170,9 +187,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error("Error validating coupon:", error);
+    console.error("Error validating promotion:", error);
     return NextResponse.json(
-      { error: "Failed to validate coupon" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

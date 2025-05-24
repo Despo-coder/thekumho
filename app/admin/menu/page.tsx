@@ -13,6 +13,7 @@ import Link from "next/link";
 import { getPromotions } from "@/lib/actions/promotion-action";
 import { getCategories, getMenus, getMenuItems, deleteMenuItem, deleteMenu } from "@/lib/actions/menu-actions-reexport";
 import Image from "next/image";
+import PromotionAnalytics from "@/components/PromotionAnalytics";
 
 // Type definitions
 type MenuItem = {
@@ -436,6 +437,7 @@ export default function MenuManagement() {
                     <TabsTrigger value="categories">Categories</TabsTrigger>
                     <TabsTrigger value="menus">Menus</TabsTrigger>
                     <TabsTrigger value="promotions">Promotions</TabsTrigger>
+                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="items">
@@ -841,6 +843,20 @@ export default function MenuManagement() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="analytics">
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Promotion Analytics</CardTitle>
+                                <p className="text-gray-600">Performance overview for your promotions</p>
+                            </CardHeader>
+                            <CardContent>
+                                <PromotionAnalytics />
+                            </CardContent>
+                        </Card>
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>
