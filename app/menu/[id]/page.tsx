@@ -7,6 +7,7 @@ import { ChevronLeft, Minus, Plus, ShoppingCart, Star } from "lucide-react";
 // import { useRouter } from "next/navigation";
 import React from "react";
 import { useCart } from "@/lib/cart/CartContext";
+import MenuItemReviews from "@/components/MenuItemReviews";
 
 // Types for our data
 type Review = {
@@ -357,36 +358,10 @@ export default function MenuItemDetail({ params }: { params: Promise<{ id: strin
 
             {/* Reviews Section */}
             <div className="mt-16">
-                <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
-
-                {menuItem.reviews.length === 0 ? (
-                    <p className="text-gray-600">No reviews yet. Be the first to review this item!</p>
-                ) : (
-                    <div className="space-y-6">
-                        {menuItem.reviews.map((review) => (
-                            <div key={review.id} className="border-b pb-6">
-                                <div className="flex items-center mb-2">
-                                    <div className="flex">
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <Star
-                                                key={star}
-                                                className={`h-4 w-4 ${star <= review.rating
-                                                    ? "text-yellow-500 fill-yellow-500"
-                                                    : "text-gray-300"
-                                                    }`}
-                                            />
-                                        ))}
-                                    </div>
-                                    <span className="ml-2 font-medium">{review.title || "Review"}</span>
-                                </div>
-                                <p className="text-gray-700 mb-2">{review.content || "No comment provided."}</p>
-                                <div className="text-sm text-gray-500">
-                                    {review.user?.name || "Anonymous"} - {new Date(review.createdAt).toLocaleDateString()}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                <MenuItemReviews
+                    menuItemId={menuItem.id}
+                    menuItemName={menuItem.name}
+                />
             </div>
         </div>
     );
