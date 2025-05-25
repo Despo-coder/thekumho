@@ -59,6 +59,48 @@ type OrderResult = {
   error?: string
 }
 
+// Type definitions for better type safety
+type OrderWithDetails = {
+  id: string;
+  orderNumber: string | null;
+  total: number;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  orderType: OrderType;
+  createdAt: Date;
+  estimatedPickupTime: Date | null;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  items: Array<{
+    id: string;
+    quantity: number;
+    price: number;
+    menuItem: {
+      id: string;
+      name: string;
+    };
+  }>;
+  appliedPromotion: {
+    id: string;
+    name: string;
+    couponCode: string | null;
+  } | null;
+  discountAmount: number;
+};
+
+type DashboardStats = {
+  totalOrders: number;
+  pendingOrders: number;
+  todayOrders: number;
+  totalBookings: number;
+  todayBookings: number;
+  todayRevenue: number;
+  lastUpdated: string;
+};
+
 /**
  * Creates a new order in the database with PENDING status
  * This should be called BEFORE initiating payment
@@ -233,43 +275,273 @@ export async function getUserOrders(userId: string) {
   }
 }
 
-/**
- * Updates an order's status
- */
-export async function updateOrderStatus(
-  orderId: string, 
-  status: OrderStatus, 
-  note?: string
-) {
-  const session = await getServerSession(authOptions)
+// Authentication helper
+async function requireAuth(allowedRoles: string[] = ["ADMIN", "MANAGER", "CHEF", "WAITER"]) {
+  const session = await getServerSession(authOptions);
   
-  if (!session) {
-    return { success: false, error: 'Unauthorized' }
+  if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    throw new Error("Unauthorized access");
   }
   
+  return session;
+}
+
+// Get dashboard statistics
+export async function getDashboardStats(): Promise<{ success: boolean; data?: DashboardStats; error?: string }> {
   try {
-    const order = await prisma.order.update({
+    await requireAuth();
+
+    // Get today's date range (start and end of today)
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    // Fetch statistics in parallel
+    const [
+      totalOrders,
+      pendingOrders,
+      todayOrders,
+      totalBookings,
+      todayBookings,
+      todayRevenue
+    ] = await Promise.all([
+      // Total orders count
+      prisma.order.count(),
+      
+      // Pending orders count (orders that need attention)
+      prisma.order.count({
+        where: {
+          status: {
+            in: [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PREPARING]
+          }
+        }
+      }),
+      
+      // Today's orders count
+      prisma.order.count({
+        where: {
+          createdAt: {
+            gte: startOfDay,
+            lt: endOfDay
+          }
+        }
+      }),
+      
+      // Total bookings count
+      prisma.booking.count(),
+      
+      // Today's bookings count
+      prisma.booking.count({
+        where: {
+          bookingTime: {
+            gte: startOfDay,
+            lt: endOfDay
+          }
+        }
+      }),
+      
+      // Today's revenue from sales
+      prisma.sale.aggregate({
+        where: {
+          createdAt: {
+            gte: startOfDay,
+            lt: endOfDay
+          }
+        },
+        _sum: {
+          total: true
+        }
+      })
+    ]);
+
+    const stats: DashboardStats = {
+      totalOrders,
+      pendingOrders,
+      todayOrders,
+      totalBookings,
+      todayBookings,
+      todayRevenue: Number(todayRevenue._sum.total) || 0,
+      lastUpdated: new Date().toISOString()
+    };
+
+    return { success: true, data: stats };
+
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to fetch dashboard statistics" 
+    };
+  }
+}
+
+// Get orders with filtering and pagination
+export async function getOrders({
+  page = 1,
+  limit = 20,
+  status,
+  orderType,
+  dateFrom,
+  dateTo,
+  search
+}: {
+  page?: number;
+  limit?: number;
+  status?: OrderStatus;
+  orderType?: OrderType;
+  dateFrom?: Date;
+  dateTo?: Date;
+  search?: string;
+} = {}): Promise<{ 
+  success: boolean; 
+  data?: { orders: OrderWithDetails[]; totalCount: number; totalPages: number }; 
+  error?: string 
+}> {
+  try {
+    await requireAuth();
+
+    // Build where clause
+    const where: Record<string, unknown> = {};
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (orderType) {
+      where.orderType = orderType;
+    }
+    
+    if (dateFrom || dateTo) {
+      const createdAtFilter: { gte?: Date; lte?: Date } = {};
+      if (dateFrom) createdAtFilter.gte = dateFrom;
+      if (dateTo) createdAtFilter.lte = dateTo;
+      where.createdAt = createdAtFilter;
+    }
+    
+    if (search) {
+      where.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.order.count({ where });
+    const totalPages = Math.ceil(totalCount / limit);
+    const skip = (page - 1) * limit;
+
+    // Fetch orders with related data
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        items: {
+          include: {
+            menuItem: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        appliedPromotion: {
+          select: {
+            id: true,
+            name: true,
+            couponCode: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip,
+      take: limit
+    });
+
+    // Transform data for type safety
+    const transformedOrders: OrderWithDetails[] = orders.map(order => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      total: Number(order.total),
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      orderType: order.orderType,
+      createdAt: order.createdAt,
+      estimatedPickupTime: order.estimatedPickupTime,
+      user: order.user,
+      items: order.items.map(item => ({
+        id: item.id,
+        quantity: item.quantity,
+        price: Number(item.price),
+        menuItem: item.menuItem
+      })),
+      appliedPromotion: order.appliedPromotion,
+      discountAmount: Number(order.discountAmount)
+    }));
+
+    return { 
+      success: true, 
+      data: { 
+        orders: transformedOrders, 
+        totalCount, 
+        totalPages 
+      } 
+    };
+
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to fetch orders" 
+    };
+  }
+}
+
+// Update order status
+export async function updateOrderStatus(
+  orderId: string, 
+  newStatus: OrderStatus, 
+  note?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await requireAuth();
+
+    // Update order status
+    await prisma.order.update({
       where: { id: orderId },
       data: {
-        status,
+        status: newStatus,
         statusUpdates: {
           create: {
-            status,
-            note: note || `Status updated to ${status}`,
-            updatedById: session.user.id,
+            status: newStatus,
+            note: note || `Status updated to ${newStatus}`,
+            updatedById: session.user.id
           }
         }
       }
-    })
-    
-    // Revalidate any paths that show orders
-    revalidatePath('/admin/orders')
-    revalidatePath('/orders')
-    
-    return { success: true, order }
+    });
+
+    // Revalidate the orders page to reflect changes
+    revalidatePath('/admin');
+    revalidatePath('/admin/orders');
+
+    return { success: true };
+
   } catch (error) {
-    console.error('Error updating order status:', error)
-    return { success: false, error: 'Failed to update order status' }
+    console.error("Error updating order status:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to update order status" 
+    };
   }
 }
 
@@ -356,5 +628,108 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
       success: false,
       error: "Failed to cancel order. Please try again later."
     }
+  }
+}
+
+// Get recent activity for dashboard
+export async function getRecentActivity(limit: number = 10): Promise<{ 
+  success: boolean; 
+  data?: Array<{
+    id: string;
+    type: 'order' | 'booking';
+    title: string;
+    subtitle: string;
+    status: string;
+    statusColor: string;
+    timestamp: Date;
+  }>; 
+  error?: string 
+}> {
+  try {
+    await requireAuth();
+
+    // Get recent orders
+    const recentOrders = await prisma.order.findMany({
+      take: Math.ceil(limit / 2),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: { name: true, email: true }
+        }
+      }
+    });
+
+    // Get recent bookings
+    const recentBookings = await prisma.booking.findMany({
+      take: Math.ceil(limit / 2),
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Transform and combine activities
+    const activities = [
+      ...recentOrders.map(order => ({
+        id: order.id,
+        type: 'order' as const,
+        title: `Order ${order.orderNumber || `#${order.id.slice(-6)}`}`,
+        subtitle: order.user.name || order.user.email || 'Guest',
+        status: order.status,
+        statusColor: getStatusColor(order.status),
+        timestamp: order.createdAt
+      })),
+      ...recentBookings.map(booking => ({
+        id: booking.id.toString(),
+        type: 'booking' as const,
+        title: `Table for ${booking.partySize}`,
+        subtitle: booking.customerName,
+        status: booking.status,
+        statusColor: getBookingStatusColor(booking.status),
+        timestamp: booking.createdAt
+      }))
+    ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, limit);
+
+    return { success: true, data: activities };
+
+  } catch (error) {
+    console.error("Error fetching recent activity:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to fetch recent activity" 
+    };
+  }
+}
+
+// Helper function to get status colors
+function getStatusColor(status: OrderStatus): string {
+  switch (status) {
+    case OrderStatus.PENDING:
+      return 'orange';
+    case OrderStatus.CONFIRMED:
+      return 'blue';
+    case OrderStatus.PREPARING:
+      return 'yellow';
+    case OrderStatus.READY_FOR_PICKUP:
+      return 'green';
+    case OrderStatus.COMPLETED:
+      return 'green';
+    case OrderStatus.CANCELED:
+      return 'red';
+    case OrderStatus.REFUNDED:
+      return 'gray';
+    default:
+      return 'gray';
+  }
+}
+
+// Helper function to get booking status colors
+function getBookingStatusColor(status: string): string {
+  switch (status.toLowerCase()) {
+    case 'confirmed':
+      return 'green';
+    case 'pending':
+      return 'orange';
+    case 'cancelled':
+      return 'red';
+    default:
+      return 'gray';
   }
 }
