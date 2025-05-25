@@ -79,17 +79,32 @@ export function Navbar() {
                     <h6 className="text-2xl font-kaiseiOpti font-semibold text-orange-500">THE KUMO</h6>
                 </Link>
 
-                {/* Hamburger for mobile */}
-                <button
-                    className="md:hidden flex items-center p-2"
-                    onClick={() => setMenuOpen(!menuOpen)}
-                    aria-label="Toggle menu"
-                >
-                    {menuOpen ?
-                        <X className="w-6 h-6" /> :
-                        <MenuIcon className="w-6 h-6" />
-                    }
-                </button>
+                {/* Mobile controls: Cart + Hamburger */}
+                <div className="md:hidden flex items-center gap-3">
+                    {/* Cart icon for mobile */}
+                    {mounted && (
+                        <Link href="/cart" className="relative p-2">
+                            <ShoppingCart className="w-5 h-5 text-gray-700 hover:text-orange-500" />
+                            {cart.totalItems > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                    {cart.totalItems}
+                                </span>
+                            )}
+                        </Link>
+                    )}
+
+                    {/* Hamburger menu button */}
+                    <button
+                        className="flex items-center p-2"
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        aria-label="Toggle menu"
+                    >
+                        {menuOpen ?
+                            <X className="w-6 h-6" /> :
+                            <MenuIcon className="w-6 h-6" />
+                        }
+                    </button>
+                </div>
 
                 {/* Desktop nav */}
                 <nav className="hidden md:flex items-center gap-6">
@@ -206,25 +221,6 @@ export function Navbar() {
                             {link.name}
                         </Link>
                     ))}
-
-                    {/* Cart link in mobile menu */}
-                    {mounted && (
-                        <Link
-                            href="/cart"
-                            className="flex items-center gap-2 text-sm font-medium py-2 text-gray-700"
-                            onClick={() => setMenuOpen(false)}
-                        >
-                            <div className="relative">
-                                <ShoppingCart className="w-4 h-4" />
-                                {cart.totalItems > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                                        {cart.totalItems}
-                                    </span>
-                                )}
-                            </div>
-                            Cart
-                        </Link>
-                    )}
 
                     <div className="h-px w-full bg-gray-100 my-1"></div>
 

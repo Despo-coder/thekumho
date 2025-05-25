@@ -265,6 +265,16 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Enhanced user profile fields for staff management
+  employeeId   String?    @unique
+  firstName    String?
+  lastName     String?
+  status       UserStatus @default(ACTIVE)
+  hireDate     DateTime?
+  createdById  String?
+  createdBy    User?      @relation("UserCreator", fields: [createdById], references: [id])
+  createdUsers User[]     @relation("UserCreator")
+
   reviews         Review[]
   bookings        Booking[]
   orders          Order[]
@@ -275,9 +285,107 @@ model User {
 
   statusUpdates OrderStatusUpdate[]
   notifications Notification[]
+
+  // New relations for user management
+  auditLogs          UserAuditLog[]   @relation("AuditUser")
+  performedAudits    UserAuditLog[]   @relation("AuditPerformer")
+  sessions           UserSession[]
+  userPermissions    UserPermission[]
+  grantedPermissions UserPermission[] @relation("PermissionGranter")
+
+  @@index([employeeId])
+  @@index([createdById])
 }
 
-// Add this enum to your schema.prisma
+// User audit log table for tracking user management actions
+model UserAuditLog {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("AuditUser", fields: [userId], references: [id], onDelete: Cascade)
+  action        String // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, ROLE_CHANGE, etc.
+  details       Json? // Additional details about the action
+  performedById String
+  performedBy   User     @relation("AuditPerformer", fields: [performedById], references: [id])
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([performedById])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// User sessions tracking for security and management
+model UserSession {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginTime  DateTime  @default(now())
+  logoutTime DateTime?
+  ipAddress  String?
+  userAgent  String?
+  isActive   Boolean   @default(true)
+  sessionId  String?   @unique // For NextAuth session management
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([isActive])
+}
+
+// Permissions table for granular access control
+model Permission {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String?
+  category      String // MENU_MANAGEMENT, ORDER_MANAGEMENT, etc.
+  isSystemLevel Boolean  @default(false) // System-level permissions that can't be revoked
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@index([category])
+  @@index([name])
+}
+
+// Role-based permissions (default permissions for each role)
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         Role
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  granted      Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@index([permissionId])
+}
+
+// User-specific permission overrides
+model UserPermission {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  granted      Boolean // true = grant permission, false = revoke permission
+  grantedById  String
+  grantedBy    User       @relation("PermissionGranter", fields: [grantedById], references: [id])
+  reason       String? // Optional reason for the permission change
+  expiresAt    DateTime? // Optional expiration for temporary permissions
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+  @@index([grantedById])
+}
+
 enum PromotionType {
   PERCENTAGE_DISCOUNT
   FIXED_AMOUNT_DISCOUNT
@@ -285,7 +393,6 @@ enum PromotionType {
   BUY_ONE_GET_ONE
 }
 
-// Add this model to your schema.prisma
 model Promotion {
   id                String        @id @default(cuid())
   name              String
@@ -320,7 +427,6 @@ model Promotion {
   usageRecords  PromotionUsage[]
 }
 
-// Detailed promotion usage tracking
 model PromotionUsage {
   id          String    @id @default(cuid())
   promotionId String
@@ -363,6 +469,12 @@ enum WaitlistStatus {
   SEATED
   CANCELLED
   NO_SHOW
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
 
 enum Role {

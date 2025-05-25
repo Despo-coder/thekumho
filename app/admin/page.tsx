@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CookingPot, DollarSign, Package, ShoppingBag, Users, RefreshCw } from "lucide-react";
+import { Calendar, CookingPot, DollarSign, Package, ShoppingBag, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getDashboardStats, getRecentActivity } from "@/lib/actions/order-actions";
 import OrdersManagement from "@/components/OrdersManagement";
 import OrderAnalytics from "@/components/OrderAnalytics";
 import BookingsManagement from "@/components/BookingsManagement";
+import UserManagement from "@/components/UserManagement";
 
 type DashboardStats = {
     totalOrders: number;
@@ -325,26 +326,7 @@ export default function AdminDashboard() {
                 </TabsContent>
 
                 <TabsContent value="users">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>User Management</CardTitle>
-                            <CardDescription>
-                                Manage staff and customer accounts
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="py-8 text-center">
-                            <div className="mx-auto max-w-md">
-                                <Users className="mx-auto h-12 w-12 text-gray-400" />
-                                <h3 className="mt-2 text-lg font-medium">User Accounts</h3>
-                                <p className="mt-1 text-gray-500">
-                                    This section will allow you to manage user accounts and permissions.
-                                </p>
-                                <p className="text-sm text-gray-500 mt-4 italic">
-                                    Not implemented in this demo. In a full application, this would include a list of users with options to edit roles and permissions.
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <UserManagement />
                 </TabsContent>
             </Tabs>
         </div>
