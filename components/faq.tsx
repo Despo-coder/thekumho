@@ -4,8 +4,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 export function FaqSection() {
     return (
-        <section className="w-full  py-16">
-            <div className="container px-4 md:px-6 ">
+        <section >
+            <div className="container px-4 md:px-6 mb-6">
                 <div className="mx-auto max-w-3xl space-y-8 ">
                     <div className="space-y-2">
                         <h2 className="text-3xl font-bold tracking-tight text-[#1c1c1c]">FAQs</h2>
@@ -14,7 +14,7 @@ export function FaqSection() {
                         </p>
                     </div>
 
-                    <Accordion type="single" collapsible className="space-y-4">
+                    <Accordion type="single" collapsible className="space-y-4 py-4">
                         <AccordionItem value="item-1" className="border border-gray-800 rounded-lg overflow-hidden">
                             <AccordionTrigger className="px-6 py-4 text-[#1c1c1c] hover:no-underline hover:bg-gray-800/50 data-[state=open]:bg-gray-800/50">
                                 <span className="text-left font-medium">How do I order?</span>
@@ -80,6 +80,15 @@ export function FaqSection() {
                                 <span className="text-left font-medium">How do I customize my meals?</span>
                             </AccordionTrigger>
                             <AccordionContent className="px-6  pt-2 text-[#a3c2e3]">
+                                When selecting a meal, you will see customization options where you can adjust ingredients, portion sizes,
+                                or dietary preferences. These changes will be saved for your specific order.
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-7" className=" hidden border border-white rounded-lg overflow-hidden ">
+                            {/* <AccordionTrigger className="px-6 py-4 text-[#1c1c1c] hover:no-underline hover:bg-gray-800/50 data-[state=open]:bg-gray-800/50">
+                                <span className="text-left font-medium">How do I customize my meals?</span>
+                            </AccordionTrigger> */}
+                            <AccordionContent className="px-6  pt-2 text-[#FAF9F6] bg-[#FAF9F6]">
                                 When selecting a meal, you will see customization options where you can adjust ingredients, portion sizes,
                                 or dietary preferences. These changes will be saved for your specific order.
                             </AccordionContent>

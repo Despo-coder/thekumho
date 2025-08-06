@@ -3,11 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 
+
 export async function POST(request: NextRequest) {
     try {
         // Check authorization
         const session = await getServerSession(authOptions);
-        
+
         if (!session) {
             return NextResponse.json(
                 { error: "Authentication required" },
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
         // Update the promotion usage count
         await prisma.promotion.update({
             where: { id: promotionId },
-            data: { 
+            data: {
                 usageCount: { increment: 1 },
                 appliedOrders: { connect: { id: orderId } }
             }

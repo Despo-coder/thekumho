@@ -1,10 +1,11 @@
+import Link from 'next/link'
 import React from 'react'
 
 const Footer = () => {
     return (
         <div>
             {/* Footer */}
-            <footer className="bg-zinc-800 py-12 text-white border-t-4 border-orange-400">
+            <footer className="bg-zinc-800 py-12 text-white border-t-4 border-orange-400 md:mt-16 ">
                 <div className="container mx-auto px-4">
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
                         {/* Company Description */}
@@ -50,6 +51,7 @@ const Footer = () => {
                     {/* Footer Bottom */}
                     <div className="mt-8 border-t border-orange-400 pt-8 text-center text-gray-300">
                         <p>&copy; {new Date().getFullYear()} The Kumho Restaurant. All rights reserved.</p>
+                        <p>Powered by <Link href="https://wwww.opsedsolutions.com" className="text-orange-300">OPSED Solutions</Link></p>
                     </div>
                 </div>
             </footer>
