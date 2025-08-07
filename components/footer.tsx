@@ -51,7 +51,7 @@ const Footer = () => {
                     {/* Footer Bottom */}
                     <div className="mt-8 border-t border-orange-400 pt-8 text-center text-gray-300">
                         <p>&copy; {new Date().getFullYear()} The Kumho Restaurant. All rights reserved.</p>
-                        <p>Powered by <Link href="https://wwww.opsedsolutions.com" className="text-orange-300">OPSED Solutions</Link></p>
+                        <p>Powered by <Link href="https://www.opsedsolutions.com" className="text-orange-300">OPSED Solutions</Link></p>
                     </div>
                 </div>
             </footer>
